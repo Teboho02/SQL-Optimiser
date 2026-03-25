@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 
 WORKDIR /src
 COPY ["src/sql_optimizer.Web.Host/sql_optimizer.Web.Host.csproj", "src/sql_optimizer.Web.Host/"]
@@ -18,8 +18,8 @@ COPY ["src/sql_optimizer.EntityFrameworkCore", "src/sql_optimizer.EntityFramewor
 WORKDIR "/src/src/sql_optimizer.Web.Host"
 RUN dotnet publish -c Release -o /publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
-EXPOSE 80
+FROM mcr.microsoft.com/dotnet/aspnet:9.0
+EXPOSE 44311
 WORKDIR /app
 COPY --from=build /publish .
 ENTRYPOINT ["dotnet", "sql_optimizer.Web.Host.dll"]

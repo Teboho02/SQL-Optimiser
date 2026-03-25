@@ -1,0 +1,126 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-backend:
+    name: Build & Push Backend Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: Backend/aspnet-core
+          file: Backend/aspnet-core/src/sql_optimizer.Web.Host/Dockerfile
+          push: true
+          tags: ghcr.io/teboho02/sql-optimizer-backend:latest
+
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    needs: build-backend
+
+    steps:
+      - name: Deploy backend via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -e
+
+            # ── Docker ────────────────────────────────────────────────
+            if ! command -v docker &> /dev/null; then
+              curl -fsSL https://get.docker.com | sudo sh
+              sudo systemctl enable docker
+              sudo systemctl start docker
+            fi
+
+            if ! groups $USER | grep -q docker; then
+              sudo usermod -aG docker $USER
+            fi
+
+            # ── Deployment directory ──────────────────────────────────
+            sudo mkdir -p /opt/sql-optimizer && sudo chown $USER:$USER /opt/sql-optimizer
+
+            # ── Login to GHCR ─────────────────────────────────────────
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u teboho02 --password-stdin
+
+            # ── Pull & restart ────────────────────────────────────────
+            docker pull ghcr.io/teboho02/sql-optimizer-backend:latest
+            docker stop sql-optimizer-backend || true
+            docker rm sql-optimizer-backend || true
+            docker run -d \
+              --name sql-optimizer-backend \
+              --restart unless-stopped \
+              --env-file /opt/sql-optimizer/.env \
+              -p 44311:44311 \
+              ghcr.io/teboho02/sql-optimizer-backend:latest
+
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install & build
+        working-directory: Frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package frontend
+        run: |
+          cd Frontend
+          tar -czf ../frontend-dist.tar.gz .next public package.json package-lock.json next.config.ts
+
+      - name: SCP frontend to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: frontend-dist.tar.gz
+          target: /var/www/sql-optimizer/frontend
+
+      - name: Extract & restart frontend
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/sql-optimizer/frontend
+            tar -xzf frontend-dist.tar.gz
+            rm frontend-dist.tar.gz
+            npm ci --omit=dev
+            pm2 restart sql-optimizer-frontend || pm2 start "npm start" --name sql-optimizer-frontend
+            pm2 save

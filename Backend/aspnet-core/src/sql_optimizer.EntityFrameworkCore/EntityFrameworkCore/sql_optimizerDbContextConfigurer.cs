@@ -7,11 +7,11 @@ public static class sql_optimizerDbContextConfigurer
 {
     public static void Configure(DbContextOptionsBuilder<sql_optimizerDbContext> builder, string connectionString)
     {
-        builder.UseSqlServer(connectionString);
+        builder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
     }
 
     public static void Configure(DbContextOptionsBuilder<sql_optimizerDbContext> builder, DbConnection connection)
     {
-        builder.UseSqlServer(connection);
+        builder.UseMySql(connection, ServerVersion.AutoDetect(connection.ConnectionString));
     }
 }

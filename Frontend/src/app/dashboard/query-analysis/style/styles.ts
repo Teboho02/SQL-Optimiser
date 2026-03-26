@@ -1,4 +1,4 @@
-'use client';
+
 import { createStyles, css } from "antd-style";
 
 export const useStyles = createStyles(({ token }) => ({

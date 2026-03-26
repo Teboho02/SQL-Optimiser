@@ -25,6 +25,17 @@ All code contributions must follow the team standards defined in:
 
 Read the relevant standards file before making changes to either layer.
 
+## Backend — New Features
+
+Whenever a new backend entity or service is added, follow the six-step ABP/DDD scaffold process defined in the `add-backend-feature` skill:
+
+1. Define the domain entity in `Core/Domains/` extending `FullAuditedEntity<Guid>`
+2. Add a `DbSet<T>` to the `DbContext`
+3. Generate a migration with `dotnet ef migrations add`
+4. Create the DTO with `[AutoMap(typeof(TEntity))]`
+5. Create the service interface `I{Entity}AppService`
+6. Implement the service `{Entity}AppService` with `[AbpAuthorize]`
+
 ## Frontend — New Pages
 
 Whenever a new frontend page is created, also create a matching Playwright test file in `frontend/tests/` named after the page (e.g. `dashboard.spec.ts`).

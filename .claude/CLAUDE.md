@@ -8,6 +8,14 @@ team-3/
 └── frontend/              # Next.js / React (TypeScript)
 ```
 
+## GitHub Issues
+
+Every piece of work — new features, bug fixes, pages, refactors, or any other task — must have a corresponding GitHub issue **before** work begins.
+
+- If no issue exists for the task, create one first using `gh issue create`.
+- Use the project's feature request or bug report format as appropriate.
+- Reference the issue number in commit messages and pull requests.
+
 ## Standards
 
 All code contributions must follow the team standards defined in:
@@ -16,6 +24,17 @@ All code contributions must follow the team standards defined in:
 - **Frontend**: [.claude/standards/frontend-standards.md](.claude/standards/frontend-standards.md)
 
 Read the relevant standards file before making changes to either layer.
+
+## Backend — New Features
+
+Whenever a new backend entity or service is added, follow the six-step ABP/DDD scaffold process defined in the `add-backend-feature` skill:
+
+1. Define the domain entity in `Core/Domains/` extending `FullAuditedEntity<Guid>`
+2. Add a `DbSet<T>` to the `DbContext`
+3. Generate a migration with `dotnet ef migrations add`
+4. Create the DTO with `[AutoMap(typeof(TEntity))]`
+5. Create the service interface `I{Entity}AppService`
+6. Implement the service `{Entity}AppService` with `[AbpAuthorize]`
 
 ## Frontend — New Pages
 

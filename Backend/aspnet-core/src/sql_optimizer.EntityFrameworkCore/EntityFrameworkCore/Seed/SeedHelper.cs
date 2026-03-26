@@ -21,9 +21,6 @@ public static class SeedHelper
     {
         context.SuppressAutoSetTenantId = true;
 
-        // apply any pending EF Core migrations before seeding
-        context.Database.Migrate();
-
         // Host seed
         new InitialHostDbBuilder(context).Create();
 

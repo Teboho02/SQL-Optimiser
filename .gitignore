@@ -16,3 +16,5 @@ build
 .build
 .claude/settings.local.json
 Backend/aspnet-core/.claude/settings.local.json
+.claude/settings.local.json
+.claude/settings.local.json

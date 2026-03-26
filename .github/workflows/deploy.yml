@@ -80,7 +80,7 @@ jobs:
             # ── Write env file ────────────────────────────────────────
             {
               printf 'ASPNETCORE_ENVIRONMENT=Production\n'
-              printf 'ConnectionStrings__Default=%s\n' '${{ secrets.DB_CONNECTION_STRING }}'
+              printf 'ConnectionStrings__Default=Host=aws-1-eu-west-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.yzpndgputupgcbmwevjz;Password=qnrJoSVTLiThhBSC;SSL Mode=Require;\n'
               printf 'Authentication__JwtBearer__SecurityKey=%s\n' '${{ secrets.JWT_SECURITY_KEY }}'
               printf 'Authentication__JwtBearer__Issuer=Team3\n'
               printf 'Authentication__JwtBearer__Audience=Team3\n'

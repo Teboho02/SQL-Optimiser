@@ -9,6 +9,8 @@ namespace sql_optimizer.Web.Host.Startup
     {
         public static void Main(string[] args)
         {
+                AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
             CreateHostBuilder(args).Build().Run();
         }
 

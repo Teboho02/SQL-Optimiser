@@ -4,7 +4,8 @@
       "Bash(docker run:*)",
       "Bash(curl:*)",
       "Bash(dotnet ef:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

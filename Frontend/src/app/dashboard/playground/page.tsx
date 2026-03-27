@@ -1,15 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Select, Alert } from "antd";
 import SchemaPanel from "./SchemaPanel/SchemaPanel";
 import EditorPanel from "./EditorPanel/EditorPanel";
 import ExecutionInfoPanel from "./ExecutionInfoPanel/ExecutionInfoPanel";
 import { useStyles } from "./style/styles";
-
-interface ISchemaTable {
-    name: string;
-    columns: string[];
-}
+import { executeQuery, getSchema, ISchemaTable } from "@/services/queryService";
+import { getDatabaseConnections, IDatabaseConnectionDto } from "@/services/databaseConnectionService";
 
 interface IQueryResult {
     columns: string[];
@@ -24,58 +22,81 @@ interface IExecutionInfo {
     queryPlan: string | null;
 }
 
-const SCHEMA_TABLES: ISchemaTable[] = [
-    { name: "users", columns: ["id", "email", "name", "status", "created_at"] },
-    { name: "orders", columns: ["id", "user_id", "total", "status", "created_at"] },
-    { name: "products", columns: ["id", "name", "price", "stock"] },
-];
-
-// mock result used until backend query execution is wired up
-const MOCK_QUERY_RESULT: IQueryResult = {
-    columns: ["ID", "EMAIL", "NAME", "STATUS"],
-    rows: [
-        { ID: 1, EMAIL: "alice@example.com", NAME: "Alice Smith", STATUS: "active" },
-        { ID: 2, EMAIL: "bob@example.com", NAME: "Bob Jones", STATUS: "inactive" },
-        { ID: 3, EMAIL: "charlie@example.com", NAME: "Charlie Brown", STATUS: "active" },
-    ],
-    rowCount: 3,
-    executionTimeMs: 12,
-};
-
-// mock execution info used until backend is wired up
-const MOCK_EXECUTION_INFO: IExecutionInfo = {
-    status: "success",
-    executionTimeMs: 12.4,
-    queryPlan: "Limit (cost=0.00..0.15 rows=10)\n→ Seq Scan on users",
-};
-
 const IDLE_EXECUTION_INFO: IExecutionInfo = {
     status: "idle",
     executionTimeMs: null,
     queryPlan: null,
 };
 
-const DEFAULT_SQL = "SELECT * FROM users LIMIT 10;";
+const DEFAULT_SQL = "SELECT * FROM ";
 
-/** SQL Playground — write and execute queries directly against a connected database. */
+/** SQL Playground — write and execute queries directly against a restored local database. */
 export default function PlaygroundPage(): React.JSX.Element {
     const { styles } = useStyles();
+
+    const [connections, setConnections] = useState<IDatabaseConnectionDto[]>([]);
+    const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+    const [schemaTables, setSchemaTables] = useState<ISchemaTable[]>([]);
+
     const [sqlText, setSqlText] = useState<string>(DEFAULT_SQL);
     const [queryResult, setQueryResult] = useState<IQueryResult | null>(null);
     const [executionInfo, setExecutionInfo] = useState<IExecutionInfo>(IDLE_EXECUTION_INFO);
+    const [queryError, setQueryError] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState<boolean>(false);
 
-    const handleRun = (): void => {
-        if (!sqlText.trim()) { return; }
+    // Load restored connections on mount
+    useEffect(() => {
+        void getDatabaseConnections().then((items) => {
+            const restored = items.filter((c) => c.restoreStatus === 3);
+            setConnections(restored);
+            if (restored.length === 1) {
+                setSelectedConnectionId(restored[0].id);
+            }
+        });
+    }, []);
+
+    // Reload schema when connection changes
+    const loadSchema = useCallback(async (connectionId: string): Promise<void> => {
+        const tables = await getSchema(connectionId);
+        setSchemaTables(tables);
+    }, []);
+
+    useEffect(() => {
+        if (selectedConnectionId) {
+            void loadSchema(selectedConnectionId);
+        } else {
+            setSchemaTables([]);
+        }
+    }, [selectedConnectionId, loadSchema]);
+
+    const handleRun = async (): Promise<void> => {
+        if (!sqlText.trim() || !selectedConnectionId) return;
+
         setIsRunning(true);
         setQueryResult(null);
+        setQueryError(null);
         setExecutionInfo(IDLE_EXECUTION_INFO);
-        // todo: call backend query execution API and replace mock data
-        setTimeout(() => {
-            setIsRunning(false);
-            setQueryResult(MOCK_QUERY_RESULT);
-            setExecutionInfo(MOCK_EXECUTION_INFO);
-        }, 800);
+
+        const result = await executeQuery({ connectionId: selectedConnectionId, sql: sqlText });
+
+        setIsRunning(false);
+
+        if (result.error) {
+            setQueryError(result.error);
+            setExecutionInfo({ status: "error", executionTimeMs: null, queryPlan: null });
+        } else {
+            setQueryResult({
+                columns: result.columns,
+                rows: result.rows,
+                rowCount: result.rowsAffected,
+                executionTimeMs: result.executionTimeMs,
+            });
+            setExecutionInfo({
+                status: "success",
+                executionTimeMs: result.executionTimeMs,
+                queryPlan: null,
+            });
+        }
     };
 
     const handleExplain = (): void => {
@@ -86,19 +107,46 @@ export default function PlaygroundPage(): React.JSX.Element {
         // todo: call backend AI analysis API
     };
 
+    const connectionOptions = connections.map((c) => ({
+        value: c.id,
+        label: c.name,
+    }));
+
     return (
-        <div className={styles.threeColumnLayout}>
-            <SchemaPanel tables={SCHEMA_TABLES} />
-            <EditorPanel
-                sqlText={sqlText}
-                onSqlChange={setSqlText}
-                onRun={handleRun}
-                onExplain={handleExplain}
-                onAiAnalyse={handleAiAnalyse}
-                isRunning={isRunning}
-                queryResult={queryResult}
-            />
-            <ExecutionInfoPanel executionInfo={executionInfo} />
-        </div>
+        <>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                <span style={{ fontSize: 13, fontWeight: 500, flexShrink: 0 }}>Connection</span>
+                <Select
+                    style={{ width: 280 }}
+                    placeholder="Select a restored connection..."
+                    options={connectionOptions}
+                    value={selectedConnectionId}
+                    onChange={setSelectedConnectionId}
+                    notFoundContent="No restored connections found"
+                />
+            </div>
+            {queryError && (
+                <Alert
+                    type="error"
+                    message={queryError}
+                    closable
+                    onClose={() => setQueryError(null)}
+                    style={{ marginBottom: 12 }}
+                />
+            )}
+            <div className={styles.threeColumnLayout}>
+                <SchemaPanel tables={schemaTables} />
+                <EditorPanel
+                    sqlText={sqlText}
+                    onSqlChange={setSqlText}
+                    onRun={() => void handleRun()}
+                    onExplain={handleExplain}
+                    onAiAnalyse={handleAiAnalyse}
+                    isRunning={isRunning}
+                    queryResult={queryResult}
+                />
+                <ExecutionInfoPanel executionInfo={executionInfo} />
+            </div>
+        </>
     );
 }

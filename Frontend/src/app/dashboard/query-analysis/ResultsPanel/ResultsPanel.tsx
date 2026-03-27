@@ -10,10 +10,14 @@ interface IResultsPanelProps {
     isAnalysing: boolean;
     /** Whether analysis results are available to display. */
     hasResults: boolean;
+    /** Execution plan lines returned by EXPLAIN ANALYZE, or null when not yet run. */
+    executionPlan: string[] | null;
+    /** Error message from the last analyse run, or null. */
+    error: string | null;
 }
 
 /** Right panel that shows the empty state, loading state, or analysis results. */
-const ResultsPanel: React.FC<IResultsPanelProps> = ({ isAnalysing, hasResults }) => {
+const ResultsPanel: React.FC<IResultsPanelProps> = ({ isAnalysing, hasResults, executionPlan, error }) => {
     const { styles } = useStyles();
 
     if (isAnalysing) {
@@ -48,9 +52,23 @@ const ResultsPanel: React.FC<IResultsPanelProps> = ({ isAnalysing, hasResults })
         );
     }
 
+    if (error) {
+        return (
+            <div className={styles.resultsPanel}>
+                <div className={styles.emptyState}>
+                    <p className={styles.emptyStateTitle} style={{ color: "var(--ant-color-error)" }}>Query Error</p>
+                    <pre className={styles.planBlock}>{error}</pre>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={styles.resultsPanel}>
-            {/* todo: render analysis results */}
+            <div className={styles.planHeader}>Execution Plan</div>
+            <pre className={styles.planBlock}>
+                {executionPlan?.join("\n")}
+            </pre>
         </div>
     );
 };

@@ -1646,13 +1646,27 @@ namespace sql_optimizer.Migrations
                     b.Property<long?>("LastModifierUserId")
                         .HasColumnType("bigint");
 
+                    b.Property<DateTime?>("LastRestoreTime")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("LastSyncTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LocalConnectionString")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("RestoreErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("RestoreStatus")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

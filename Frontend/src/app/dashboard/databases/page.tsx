@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import DatabasesHeader from "./DatabasesHeader/DatabasesHeader";
 import ConnectionCardList from "./ConnectionCardList/ConnectionCardList";
 import AddConnectionForm from "./AddConnectionForm/AddConnectionForm";
-import { getDatabaseConnections, IDatabaseConnectionDto, DATABASE_ENGINE_NAMES } from "@/services/databaseConnectionService";
+import { getDatabaseConnections, IDatabaseConnectionDto, DATABASE_ENGINE_NAMES, RESTORE_STATUS_LABELS } from "@/services/databaseConnectionService";
 import { IDatabase } from "./ConnectionCard/ConnectionCard";
 
 /** Maps a backend DTO to the shape expected by ConnectionCard. */
@@ -17,6 +17,8 @@ function mapToDatabase(dto: IDatabaseConnectionDto): IDatabase {
         host: dto.dbHost,
         latency: "-",
         status: "connected",
+        restoreStatus: RESTORE_STATUS_LABELS[dto.restoreStatus] ?? "Unknown",
+        isLocalReady: dto.restoreStatus === 3,
     };
 }
 

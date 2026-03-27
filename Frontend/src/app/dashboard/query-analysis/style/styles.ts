@@ -180,4 +180,27 @@ export const useStyles = createStyles(({ token }) => ({
     spinnerWrapper: css`
         margin-bottom: 20px;
     `,
+
+    planHeader: css`
+        padding: 10px 16px;
+        border-bottom: 1px solid ${token.colorBorder};
+        background: rgba(255, 255, 255, 0.02);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: ${token.colorTextSecondary};
+        flex-shrink: 0;
+    `,
+
+    planBlock: css`
+        flex: 1;
+        overflow: auto;
+        margin: 0;
+        padding: 16px 20px;
+        font-family: var(--font-geist-mono), monospace;
+        font-size: 12px;
+        line-height: 1.7;
+        color: ${token.colorTextBase};
+        white-space: pre;
+    `,
 }));

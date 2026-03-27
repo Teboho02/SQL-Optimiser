@@ -9,4 +9,6 @@ export const API_CONSTANTS = {
     TEST_CONNECTION: `${API_BASE_URL}/api/services/app/databaseConnection/testConnection`,
     SAVE_CONNECTION: `${API_BASE_URL}/api/services/app/databaseConnection/saveConnection`,
     GET_ALL_CONNECTIONS: `${API_BASE_URL}/api/services/app/databaseConnection/getAll`,
+    EXECUTE_QUERY: `${API_BASE_URL}/api/services/app/queryExecution/execute`,
+    GET_SCHEMA: `${API_BASE_URL}/api/services/app/queryExecution/getSchema`,
 };

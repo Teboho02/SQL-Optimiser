@@ -17,6 +17,8 @@ interface IQueryEditorPanelProps {
     onFormat: () => void;
     /** Called when the user clicks Clear. */
     onClear: () => void;
+    /** Display name of the selected connection, or null when none selected. */
+    connectionName: string | null;
 }
 
 /** Left panel containing the SQL editor textarea and intent description input. */
@@ -27,6 +29,7 @@ const QueryEditorPanel: React.FC<IQueryEditorPanelProps> = ({
     onIntentChange,
     onFormat,
     onClear,
+    connectionName,
 }) => {
     const { styles } = useStyles();
 
@@ -35,7 +38,7 @@ const QueryEditorPanel: React.FC<IQueryEditorPanelProps> = ({
             <div className={styles.editorToolbar}>
                 <div className={styles.editorToolbarLeft}>
                     <Tag color="blue">PostgreSQL</Tag>
-                    <span className={styles.dbName}>prod-main</span>
+                    <span className={styles.dbName}>{connectionName ?? "No connection selected"}</span>
                 </div>
                 <div className={styles.editorToolbarRight}>
                     <Button type="text" size="small" onClick={onFormat}>Format</Button>

@@ -24,6 +24,10 @@ export interface IDatabase {
     latency: string;
     /** Whether the connection is currently active. */
     status: TConnectionStatus;
+    /** Human-readable restore status label. */
+    restoreStatus: string;
+    /** Whether a local copy of the database is ready to query. */
+    isLocalReady: boolean;
 }
 
 interface IConnectionCardProps {
@@ -58,6 +62,9 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database }) => {
             <div className={styles.cardFooter}>
                 <span className={database.status === "connected" ? styles.badgeConnected : styles.badgeDisconnected}>
                     {database.status}
+                </span>
+                <span className={database.isLocalReady ? styles.badgeConnected : styles.badgeDisconnected}>
+                    {database.restoreStatus}
                 </span>
                 <Button type="text" size="small">Configure</Button>
             </div>

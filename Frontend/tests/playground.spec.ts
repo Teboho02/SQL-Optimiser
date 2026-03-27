@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Playground", () => {
     test("loads successfully", async ({ page }) => {
         await page.goto("/dashboard/playground");
-        await expect(page.getByText("Schema")).toBeVisible();
+        await expect(page.getByText("Schema", { exact: true })).toBeVisible();
     });
 
     test("has correct URL", async ({ page }) => {

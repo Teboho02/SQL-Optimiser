@@ -49,7 +49,9 @@ test.describe("QueryAnalysisPage", () => {
         await page.goto("/dashboard/query-analysis");
         const editor = page.getByRole("textbox", { name: "SQL editor" });
         await editor.fill("SELECT 1;");
-        await page.getByRole("button", { name: "Clear" }).click();
+        const clearBtn = page.getByRole("button", { name: "Clear" });
+        await clearBtn.waitFor({ state: "visible" });
+        await clearBtn.click();
         await expect(editor).toHaveValue("");
     });
 });

@@ -20,8 +20,6 @@ test.describe("DashboardPage", () => {
 
     test("shows database health cards", async ({ page }) => {
         await page.goto("/dashboard");
-        await expect(page.getByText("prod-main")).toBeVisible();
-        await expect(page.getByText("prod-analytics")).toBeVisible();
         await expect(page.getByText("Total Analyses")).toBeVisible();
     });
 

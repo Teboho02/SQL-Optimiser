@@ -88,6 +88,17 @@ jobs:
             # ── Write docker-compose ──────────────────────────────────
             cat > /opt/team3/docker-compose.yml <<'COMPOSEEOF'
             services:
+              localdb:
+                image: postgres:16-alpine
+                env_file:
+                  - .env
+                environment:
+                  POSTGRES_USER: ${LOCAL_POSTGRES_USER}
+                  POSTGRES_PASSWORD: ${LOCAL_POSTGRES_PASSWORD}
+                volumes:
+                  - localdb_data:/var/lib/postgresql/data
+                restart: always
+
               abp_host:
                 image: ghcr.io/teboho02/sql-optimizer-backend:latest
                 env_file:
@@ -99,6 +110,9 @@ jobs:
                   - "44312:80"
                 volumes:
                   - "./Host-Logs:/app/App_Data/Logs"
+                  - "./Host-Dumps:/app/App_Data/Dumps"
+                depends_on:
+                  - localdb
                 restart: always
 
               frontend:
@@ -106,6 +120,9 @@ jobs:
                 ports:
                   - "3000:3000"
                 restart: always
+
+            volumes:
+              localdb_data:
             COMPOSEEOF
 
             # ── Write env file ────────────────────────────────────────
@@ -115,7 +132,11 @@ jobs:
               printf 'Authentication__JwtBearer__SecurityKey=%s\n' '${{ secrets.JWT_SECURITY_KEY }}'
               printf 'Authentication__JwtBearer__Issuer=Team3\n'
               printf 'Authentication__JwtBearer__Audience=Team3\n'
-              printf 'GEMINI_API_KEY=%s\n' '${{ secrets.GEMINI_API_KEY }}'
+              printf 'OPENAI_KEY=%s\n' '${{ secrets.OPENAI_KEY }}'
+              printf 'LOCAL_POSTGRES_USER=%s\n' '${{ secrets.LOCAL_POSTGRES_USER }}'
+              printf 'LOCAL_POSTGRES_PASSWORD=%s\n' '${{ secrets.LOCAL_POSTGRES_PASSWORD }}'
+              printf 'LOCAL_POSTGRES_HOST=localdb\n'
+              printf 'LOCAL_POSTGRES_PORT=5432\n'
               printf 'App__ServerRootAddress=http://sqloptimiser.ddns.net/\n'
               printf 'App__ClientRootAddress=http://sqloptimiser.ddns.net/\n'
               printf 'App__CorsOrigins=http://sqloptimiser.ddns.net\n'

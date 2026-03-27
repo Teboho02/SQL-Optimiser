@@ -113,6 +113,22 @@ public class DatabaseConnectionAppService
     }
 
     /// <summary>
+    /// Manually enqueues a restore of the latest dump into the local server database.
+    /// </summary>
+    public async Task TriggerRestoreAsync(Guid connectionId)
+    {
+        var entity = await Repository.GetAsync(connectionId);
+        entity.RestoreStatus = RestoreStatus.Pending;
+        await Repository.UpdateAsync(entity);
+        await CurrentUnitOfWork.SaveChangesAsync();
+
+        Logger.Info($"[TriggerRestore] Manually enqueueing restore for connection {connectionId}.");
+
+        await _backgroundJobManager.EnqueueAsync<DatabaseRestoreJob, DatabaseRestoreArgs>(
+            new DatabaseRestoreArgs { ConnectionId = connectionId });
+    }
+
+    /// <summary>
     /// Opens and immediately closes a Npgsql connection to verify the credentials.
     /// </summary>
     private async Task<TestConnectionOutput> TestPostgresConnectionAsync(TestConnectionInput input)

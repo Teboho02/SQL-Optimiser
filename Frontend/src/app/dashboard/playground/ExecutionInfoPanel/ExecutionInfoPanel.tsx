@@ -39,10 +39,14 @@ const ExecutionInfoPanel: React.FC<IExecutionInfoPanelProps> = ({ executionInfo 
                     <p className={styles.infoLabel}>Status</p>
                     <div className={styles.statusRow}>
                         <span className={styles.statusDot} />
-                        Success
+                        {executionInfo.status === "success" ? "Success" : "Error"}
                     </div>
-                    <p className={styles.infoLabel}>Execution Time</p>
-                    <p className={styles.executionTimeValue}>{executionInfo.executionTimeMs}ms</p>
+                    {executionInfo.executionTimeMs !== null && (
+                        <>
+                            <p className={styles.infoLabel}>Execution Time</p>
+                            <p className={styles.executionTimeValue}>{executionInfo.executionTimeMs}ms</p>
+                        </>
+                    )}
                     {executionInfo.queryPlan && (
                         <>
                             <p className={styles.infoLabel}>Query Plan Summary</p>

@@ -180,4 +180,83 @@ export const useStyles = createStyles(({ token }) => ({
     spinnerWrapper: css`
         margin-bottom: 20px;
     `,
+
+    planHeader: css`
+        padding: 10px 16px;
+        border-bottom: 1px solid ${token.colorBorder};
+        background: rgba(255, 255, 255, 0.02);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: ${token.colorTextSecondary};
+        flex-shrink: 0;
+    `,
+
+    explanationText: css`
+        padding: 12px 20px;
+        font-size: 13px;
+        line-height: 1.7;
+        color: ${token.colorTextSecondary};
+        margin: 0;
+        border-bottom: 1px solid ${token.colorBorder};
+    `,
+
+    planBlock: css`
+        flex: 1;
+        overflow: auto;
+        margin: 0;
+        padding: 16px 20px;
+        font-family: var(--font-geist-mono), monospace;
+        font-size: 12px;
+        line-height: 1.7;
+        color: ${token.colorTextBase};
+        white-space: pre;
+    `,
+
+    benchmarkCard: css`
+        margin: 12px 16px;
+        border: 1px solid ${token.colorBorder};
+        border-radius: 8px;
+        overflow: hidden;
+        flex-shrink: 0;
+    `,
+
+    benchmarkGrid: css`
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    `,
+
+    benchmarkCol: css`
+        padding: 14px 20px;
+
+        &:first-child {
+            border-right: 1px solid ${token.colorBorder};
+        }
+    `,
+
+    benchmarkLabel: css`
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: ${token.colorTextQuaternary};
+        margin: 0 0 4px;
+        text-transform: uppercase;
+    `,
+
+    benchmarkTime: css`
+        font-size: 22px;
+        font-weight: 700;
+        font-family: var(--font-geist-mono), monospace;
+        color: ${token.colorTextBase};
+        margin: 0;
+    `,
+
+    benchmarkImprovement: css`
+        padding: 8px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        border-top: 1px solid ${token.colorBorder};
+        background: rgba(255, 255, 255, 0.02);
+        text-align: center;
+    `,
 }));

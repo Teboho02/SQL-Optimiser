@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button, Input, Select } from "antd";
+import { Button, Input, Select, notification } from "antd";
 import { DatabaseOutlined, KeyOutlined, CodeOutlined } from "@ant-design/icons";
+import { testConnection, DATABASE_TYPE_MAP } from "@/services/databaseConnectionService";
+import { API_CONSTANTS } from "@/constants/ApiConstants";
+import { tokenService } from "@/services/tokenService";
 import { useStyles } from "../style/styles";
 
 const ENGINE_OPTIONS = [
@@ -37,8 +40,13 @@ const INITIAL_VALUES: IConnectionFormValues = {
     password: "",
 };
 
+interface IAddConnectionFormProps {
+    /** Called after a connection is saved successfully so the list can refresh. */
+    onSaved: () => void;
+}
+
 /** Form for registering a new database connection. */
-const AddConnectionForm: React.FC = () => {
+const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
     const { styles } = useStyles();
     const [values, setValues] = useState<IConnectionFormValues>(INITIAL_VALUES);
     const [isTesting, setIsTesting] = useState<boolean>(false);
@@ -56,17 +64,75 @@ const AddConnectionForm: React.FC = () => {
         }));
     };
 
-    const handleTestConnection = (): void => {
+    const handleTestConnection = async (): Promise<void> => {
+        if (!values.host.trim() || !values.username.trim() || !values.password.trim()) {
+            notification.warning({ message: "Please fill in Host, Username, and Password before testing." });
+            return;
+        }
+
         setIsTesting(true);
-        // todo: call backend test-connection endpoint
-        setTimeout(() => setIsTesting(false), 1500);
+        try {
+            const result = await testConnection({
+                dbHost: values.host,
+                dbPort: parseInt(values.port, 10) || 5432,
+                dbUser: values.username,
+                dbPassword: values.password,
+                databaseType: DATABASE_TYPE_MAP[values.engine] ?? 2,
+                requireSsl: true,
+            });
+
+            if (result.success) {
+                notification.success({ message: "Connection successful!", description: result.message });
+            } else {
+                notification.error({ message: "Connection failed", description: result.message });
+            }
+        } catch {
+            notification.error({ message: "Connection failed", description: "Unable to reach the server." });
+        } finally {
+            setIsTesting(false);
+        }
     };
 
-    const handleSaveConnection = (): void => {
-        if (!values.name.trim() || !values.host.trim()) { return; }
+    const handleSaveConnection = async (): Promise<void> => {
+        if (!values.name.trim() || !values.host.trim()) {
+            notification.warning({ message: "Please fill in at least a Connection Name and Host." });
+            return;
+        }
+
         setIsSaving(true);
-        // todo: call backend save-connection endpoint
-        setTimeout(() => setIsSaving(false), 1500);
+        try {
+            const response = await fetch(API_CONSTANTS.SAVE_CONNECTION, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${tokenService.getToken()}`,
+                },
+                body: JSON.stringify({
+                    name: values.name,
+                    dbHost: values.host,
+                    dbPort: parseInt(values.port, 10) || 5432,
+                    dbUser: values.username,
+                    dbPassword: values.password,
+                    databaseType: DATABASE_TYPE_MAP[values.engine] ?? 2,
+                    requireSsl: true,
+                }),
+            });
+
+            const json = await response.json();
+
+            if (json.success) {
+                notification.success({ message: "Connection saved successfully!" });
+                setValues(INITIAL_VALUES);
+                onSaved();
+            } else {
+                const errorMessage = json.error?.details ?? json.error?.message ?? "An unexpected error occurred.";
+                notification.error({ message: "Failed to save connection", description: errorMessage });
+            }
+        } catch {
+            notification.error({ message: "Failed to save connection", description: "Unable to reach the server." });
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -134,14 +200,14 @@ const AddConnectionForm: React.FC = () => {
                 <Button
                     icon={<CodeOutlined />}
                     loading={isTesting}
-                    onClick={handleTestConnection}
+                    onClick={() => { void handleTestConnection(); }}
                 >
                     Test Connection
                 </Button>
                 <Button
                     type="primary"
                     loading={isSaving}
-                    onClick={handleSaveConnection}
+                    onClick={() => { void handleSaveConnection(); }}
                 >
                     Save Connection
                 </Button>

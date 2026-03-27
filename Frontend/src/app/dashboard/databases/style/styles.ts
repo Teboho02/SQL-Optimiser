@@ -171,6 +171,20 @@ export const useStyles = createStyles(({ token }) => ({
         }
     `,
 
+    loadingWrapper: css`
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 60px 0;
+        margin-bottom: 36px;
+    `,
+
+    emptyState: css`
+        font-size: 14px;
+        color: ${token.colorTextSecondary};
+        margin-bottom: 36px;
+    `,
+
     // add new connection form section
     formSection: css`
         background: ${token.colorBgContainer};

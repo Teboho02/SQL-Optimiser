@@ -6,7 +6,7 @@ import QueryAnalysisHeader from "./QueryAnalysisHeader/QueryAnalysisHeader";
 import QueryEditorPanel from "./QueryEditorPanel/QueryEditorPanel";
 import ResultsPanel from "./ResultsPanel/ResultsPanel";
 import { useStyles } from "./style/styles";
-import { executeQuery } from "@/services/queryService";
+import { analyseQuery, benchmarkQuery, IBenchmarkResponse, IAnalyseQueryResponse } from "@/services/queryService";
 import { getDatabaseConnections, IDatabaseConnectionDto } from "@/services/databaseConnectionService";
 
 /** Query Analysis page — paste SQL, trigger analysis, view optimisation results. */
@@ -19,8 +19,12 @@ export default function QueryAnalysisPage(): React.JSX.Element {
     const [sqlText, setSqlText] = useState<string>("");
     const [intentText, setIntentText] = useState<string>("");
     const [isAnalysing, setIsAnalysing] = useState<boolean>(false);
-    const [executionPlan, setExecutionPlan] = useState<string[] | null>(null);
+    const [analysisResult, setAnalysisResult] = useState<IAnalyseQueryResponse | null>(null);
     const [analyseError, setAnalyseError] = useState<string | null>(null);
+
+    const [isBenchmarking, setIsBenchmarking] = useState<boolean>(false);
+    const [benchmarkResult, setBenchmarkResult] = useState<IBenchmarkResponse | null>(null);
+    const [benchmarkError, setBenchmarkError] = useState<string | null>(null);
 
     useEffect(() => {
         void getDatabaseConnections().then((items) => {
@@ -34,12 +38,13 @@ export default function QueryAnalysisPage(): React.JSX.Element {
         if (!sqlText.trim() || !selectedConnectionId) return;
 
         setIsAnalysing(true);
-        setExecutionPlan(null);
+        setAnalysisResult(null);
         setAnalyseError(null);
 
-        const result = await executeQuery({
+        const result = await analyseQuery({
             connectionId: selectedConnectionId,
-            sql: `EXPLAIN ANALYZE ${sqlText}`,
+            sql: sqlText,
+            intent: intentText || undefined,
         });
 
         setIsAnalysing(false);
@@ -47,9 +52,7 @@ export default function QueryAnalysisPage(): React.JSX.Element {
         if (result.error) {
             setAnalyseError(result.error);
         } else {
-            // EXPLAIN ANALYZE returns rows with a single "QUERY PLAN" column
-            const planLines = result.rows.map((row) => Object.values(row)[0] as string);
-            setExecutionPlan(planLines);
+            setAnalysisResult(result);
         }
     };
 
@@ -57,18 +60,40 @@ export default function QueryAnalysisPage(): React.JSX.Element {
         // todo: format SQL via backend or local formatter
     };
 
+    const handleBenchmark = async (): Promise<void> => {
+        if (!selectedConnectionId || !sqlText.trim() || !analysisResult?.suggestedQuery) return;
+
+        setIsBenchmarking(true);
+        setBenchmarkResult(null);
+        setBenchmarkError(null);
+
+        const result = await benchmarkQuery({
+            connectionId: selectedConnectionId,
+            originalSql: sqlText,
+            suggestedSql: analysisResult.suggestedQuery,
+        });
+
+        setIsBenchmarking(false);
+
+        if (result.error) {
+            setBenchmarkError(result.error);
+        } else {
+            setBenchmarkResult(result);
+        }
+    };
+
     const handleClear = (): void => {
         setSqlText("");
         setIntentText("");
-        setExecutionPlan(null);
+        setAnalysisResult(null);
         setAnalyseError(null);
+        setBenchmarkResult(null);
+        setBenchmarkError(null);
     };
 
     const selectedConnection = connections.find((c) => c.id === selectedConnectionId) ?? null;
-
     const connectionOptions = connections.map((c) => ({ value: c.id, label: c.name }));
-
-    const hasResults = executionPlan !== null;
+    const hasResults = analysisResult !== null;
 
     return (
         <>
@@ -97,8 +122,12 @@ export default function QueryAnalysisPage(): React.JSX.Element {
                 <ResultsPanel
                     isAnalysing={isAnalysing}
                     hasResults={hasResults}
-                    executionPlan={executionPlan}
+                    result={analysisResult}
                     error={analyseError}
+                    onBenchmark={() => void handleBenchmark()}
+                    isBenchmarking={isBenchmarking}
+                    benchmarkResult={benchmarkResult}
+                    benchmarkError={benchmarkError}
                 />
             </div>
         </>

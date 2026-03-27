@@ -19,4 +19,14 @@ public interface IQueryExecutionAppService : IApplicationService
     /// Returns all user tables and their columns from the local copy of the given connection's database.
     /// </summary>
     Task<List<SchemaTableDto>> GetSchemaAsync(GetSchemaInput input);
+
+    /// <summary>
+    /// Runs EXPLAIN ANALYZE on the query, then asks the AI to suggest an optimised version.
+    /// </summary>
+    Task<AnalyseQueryOutput> AnalyseAsync(AnalyseQueryInput input);
+
+    /// <summary>
+    /// Executes both the original and the AI-suggested query N times each and returns averaged timings.
+    /// </summary>
+    Task<BenchmarkOutput> BenchmarkAsync(BenchmarkInput input);
 }

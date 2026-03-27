@@ -29,6 +29,7 @@ services:
       LOCAL_POSTGRES_PORT: "5432"
       LOCAL_POSTGRES_USER: ${LOCAL_POSTGRES_USER}
       LOCAL_POSTGRES_PASSWORD: ${LOCAL_POSTGRES_PASSWORD}
+      OPENAI_KEY: ${OPENAI_KEY}
     volumes:
       - ./Backend-Logs:/app/App_Data/Logs
       - ./Backend-Dumps:/app/App_Data/Dumps

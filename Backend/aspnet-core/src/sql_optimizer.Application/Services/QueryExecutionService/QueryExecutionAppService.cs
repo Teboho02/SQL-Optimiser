@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Abp.Application.Services;
 using Abp.Authorization;
 using Abp.Domain.Repositories;
 using Npgsql;
+using OpenAI.Chat;
 using sql_optimizer.Core.Domains.Database;
 using sql_optimizer.Services.QueryExecutionService.DTO;
 
@@ -126,6 +129,159 @@ public class QueryExecutionAppService : ApplicationService, IQueryExecutionAppSe
         {
             Logger.Error($"[QueryExecution] Schema fetch failed for connection {input.ConnectionId}: {ex.Message}", ex);
             return [];
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<AnalyseQueryOutput> AnalyseAsync(AnalyseQueryInput input)
+    {
+        var connectionString = await GetLocalConnectionStringAsync(input.ConnectionId);
+        if (connectionString is null)
+            return new AnalyseQueryOutput { Error = "This connection has not been restored to the local database yet." };
+
+        var openAiKey = Environment.GetEnvironmentVariable("OPENAI_KEY");
+        if (string.IsNullOrWhiteSpace(openAiKey))
+            return new AnalyseQueryOutput { Error = "OPENAI_KEY environment variable is not configured." };
+
+        // 1. Run EXPLAIN ANALYZE to get the execution plan
+        List<string> planLines;
+        try
+        {
+            var planResult = await ExecuteAsync(new ExecuteQueryInput
+            {
+                ConnectionId = input.ConnectionId,
+                Sql = $"EXPLAIN ANALYZE {input.Sql}",
+            });
+
+            if (planResult.Error != null)
+                return new AnalyseQueryOutput { Error = $"Could not run EXPLAIN ANALYZE: {planResult.Error}" };
+
+            planLines = planResult.Rows.Select(r => r.Values.FirstOrDefault()?.ToString() ?? "").ToList();
+        }
+        catch (Exception ex)
+        {
+            return new AnalyseQueryOutput { Error = $"Could not run EXPLAIN ANALYZE: {ex.Message}" };
+        }
+
+        // 2. Fetch schema for context
+        var schema = await GetSchemaAsync(new GetSchemaInput { ConnectionId = input.ConnectionId });
+        var schemaText = string.Join("\n", schema.Select(t =>
+            $"  {t.Name}({string.Join(", ", t.Columns)})"));
+
+        // 3. Build the prompt and call OpenAI
+        var systemPrompt = """
+            You are an expert PostgreSQL performance engineer.
+            The user will provide a SQL query, its EXPLAIN ANALYZE output, and the database schema.
+            Respond with a JSON object in this exact format (no markdown, no code fences):
+            {
+              "suggestedQuery": "<optimised SQL or original if already optimal>",
+              "explanation": "<concise explanation of issues found and changes made>"
+            }
+            """;
+
+        var intentSection = string.IsNullOrWhiteSpace(input.Intent)
+            ? ""
+            : $"\n\nUser intent: {input.Intent}";
+
+        var userMessage = $"""
+            SQL query:
+            {input.Sql}
+            {intentSection}
+
+            EXPLAIN ANALYZE output:
+            {string.Join("\n", planLines)}
+
+            Database schema:
+            {schemaText}
+            """;
+
+        try
+        {
+            var chatClient = new ChatClient("gpt-4o-mini", openAiKey);
+            var response = await chatClient.CompleteChatAsync(
+            [
+                new SystemChatMessage(systemPrompt),
+                new UserChatMessage(userMessage),
+            ]);
+
+            var content = response.Value.Content[0].Text;
+            using var doc = JsonDocument.Parse(content);
+            var root = doc.RootElement;
+
+            return new AnalyseQueryOutput
+            {
+                ExecutionPlan = planLines,
+                SuggestedQuery = root.GetProperty("suggestedQuery").GetString(),
+                Explanation = root.GetProperty("explanation").GetString(),
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[QueryAnalysis] OpenAI call failed: {ex.Message}", ex);
+            return new AnalyseQueryOutput
+            {
+                ExecutionPlan = planLines,
+                Error = $"AI analysis failed: {ex.Message}",
+            };
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<BenchmarkOutput> BenchmarkAsync(BenchmarkInput input)
+    {
+        var connectionString = await GetLocalConnectionStringAsync(input.ConnectionId);
+        if (connectionString is null)
+            return new BenchmarkOutput { Error = "This connection has not been restored to the local database yet." };
+
+        var runs = Math.Clamp(input.Runs, 1, 10);
+
+        try
+        {
+            var originalTimes = new List<long>(runs);
+            var suggestedTimes = new List<long>(runs);
+
+            for (var i = 0; i < runs; i++)
+            {
+                var originalResult = await ExecuteAsync(new ExecuteQueryInput
+                {
+                    ConnectionId = input.ConnectionId,
+                    Sql = input.OriginalSql,
+                });
+
+                if (originalResult.Error != null)
+                    return new BenchmarkOutput { Error = $"Original query failed: {originalResult.Error}" };
+
+                originalTimes.Add(originalResult.ExecutionTimeMs);
+
+                var suggestedResult = await ExecuteAsync(new ExecuteQueryInput
+                {
+                    ConnectionId = input.ConnectionId,
+                    Sql = input.SuggestedSql,
+                });
+
+                if (suggestedResult.Error != null)
+                    return new BenchmarkOutput { Error = $"Suggested query failed: {suggestedResult.Error}" };
+
+                suggestedTimes.Add(suggestedResult.ExecutionTimeMs);
+            }
+
+            var originalAvg = (long)originalTimes.Average();
+            var suggestedAvg = (long)suggestedTimes.Average();
+            var improvement = originalAvg > 0
+                ? Math.Round((1.0 - (double)suggestedAvg / originalAvg) * 100, 1)
+                : 0;
+
+            return new BenchmarkOutput
+            {
+                OriginalAvgMs = originalAvg,
+                SuggestedAvgMs = suggestedAvg,
+                ImprovementPercent = improvement,
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[Benchmark] Failed for connection {input.ConnectionId}: {ex.Message}", ex);
+            return new BenchmarkOutput { Error = ex.Message };
         }
     }
 

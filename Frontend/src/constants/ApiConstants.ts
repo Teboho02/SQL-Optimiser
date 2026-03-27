@@ -11,4 +11,6 @@ export const API_CONSTANTS = {
     GET_ALL_CONNECTIONS: `${API_BASE_URL}/api/services/app/databaseConnection/getAll`,
     EXECUTE_QUERY: `${API_BASE_URL}/api/services/app/queryExecution/execute`,
     GET_SCHEMA: `${API_BASE_URL}/api/services/app/queryExecution/getSchema`,
+    ANALYSE_QUERY: `${API_BASE_URL}/api/services/app/queryExecution/analyse`,
+    BENCHMARK_QUERY: `${API_BASE_URL}/api/services/app/queryExecution/benchmark`,
 };

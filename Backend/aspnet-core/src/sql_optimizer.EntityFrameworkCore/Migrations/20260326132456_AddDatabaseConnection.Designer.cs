@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using sql_optimizer.EntityFrameworkCore;
@@ -11,9 +12,11 @@ using sql_optimizer.EntityFrameworkCore;
 namespace sql_optimizer.Migrations
 {
     [DbContext(typeof(sql_optimizerDbContext))]
-    partial class sql_optimizerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260326132456_AddDatabaseConnection")]
+    partial class AddDatabaseConnection
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

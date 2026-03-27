@@ -1,46 +1,36 @@
 "use client";
 
 import React from "react";
+import { Spin } from "antd";
 import ConnectionCard, { IDatabase } from "../ConnectionCard/ConnectionCard";
 import { useStyles } from "../style/styles";
 
-const DATABASES: IDatabase[] = [
-    {
-        id: "prod-main",
-        name: "prod-main",
-        engine: "PostgreSQL",
-        version: 15,
-        host: "db-main.internal.aws",
-        latency: "12ms",
-        status: "connected",
-    },
-    {
-        id: "prod-analytics",
-        name: "prod-analytics",
-        engine: "PostgreSQL",
-        version: 14,
-        host: "db-analytics.internal.aws",
-        latency: "45ms",
-        status: "connected",
-    },
-    {
-        id: "staging-1",
-        name: "staging-1",
-        engine: "PostgreSQL",
-        version: 15,
-        host: "staging.internal.aws",
-        latency: "-",
-        status: "disconnected",
-    },
-];
+interface IConnectionCardListProps {
+    databases: IDatabase[];
+    isLoading: boolean;
+}
 
 /** Grid of all registered database connection cards. */
-const ConnectionCardList: React.FC = () => {
+const ConnectionCardList: React.FC<IConnectionCardListProps> = ({ databases, isLoading }) => {
     const { styles } = useStyles();
+
+    if (isLoading) {
+        return (
+            <div className={styles.loadingWrapper}>
+                <Spin size="large" />
+            </div>
+        );
+    }
+
+    if (databases.length === 0) {
+        return (
+            <p className={styles.emptyState}>No database connections saved yet. Add one below.</p>
+        );
+    }
 
     return (
         <div className={styles.cardsGrid}>
-            {DATABASES.map((database) => (
+            {databases.map((database) => (
                 <ConnectionCard key={database.id} database={database} />
             ))}
         </div>

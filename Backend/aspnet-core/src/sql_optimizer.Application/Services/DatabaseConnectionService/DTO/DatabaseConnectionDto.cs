@@ -38,4 +38,10 @@ public class DatabaseConnectionDto : EntityDto<Guid>
     public string DumpFilePath { get; set; }
 
     public DateTime? LastDumpTime { get; set; }
+
+    public RestoreStatus RestoreStatus { get; set; }
+
+    public string LocalConnectionString { get; set; }
+
+    public DateTime? LastRestoreTime { get; set; }
 }

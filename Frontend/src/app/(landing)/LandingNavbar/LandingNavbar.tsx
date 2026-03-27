@@ -3,6 +3,7 @@
 import { Button } from "antd";
 import { ThunderboltFilled } from "@ant-design/icons";
 import React from "react";
+import Link from "next/link";
 import { useStyles } from "./style/styles";
 
 /** Top navigation bar with logo, sign-in link, and get-started CTA. */
@@ -16,10 +17,12 @@ const LandingNavbar: React.FC = () => {
                 <span className={styles.logoText}>SQL Optimiser</span>
             </div>
             <div className={styles.navActions}>
-                <span className={styles.signInLink}>Sign in</span>
-                <Button type="primary" size="middle">
-                    Get Started
-                </Button>
+                <Link href="/login" className={styles.signInLink}>Sign in</Link>
+                <Link href="/login">
+                    <Button type="primary" size="middle">
+                        Get Started
+                    </Button>
+                </Link>
             </div>
         </nav>
     );

@@ -1,4 +1,13 @@
 services:
+  localdb:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${LOCAL_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${LOCAL_POSTGRES_PASSWORD}
+    volumes:
+      - localdb_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   backend:
     build:
       context: Backend/aspnet-core
@@ -16,9 +25,16 @@ services:
       App__ServerRootAddress: "http://localhost:44311/"
       App__ClientRootAddress: "http://localhost:3000/"
       App__CorsOrigins: "http://localhost:3000,http://localhost:3001"
+      LOCAL_POSTGRES_HOST: localdb
+      LOCAL_POSTGRES_PORT: "5432"
+      LOCAL_POSTGRES_USER: ${LOCAL_POSTGRES_USER}
+      LOCAL_POSTGRES_PASSWORD: ${LOCAL_POSTGRES_PASSWORD}
+      OPENAI_KEY: ${OPENAI_KEY}
     volumes:
       - ./Backend-Logs:/app/App_Data/Logs
       - ./Backend-Dumps:/app/App_Data/Dumps
+    depends_on:
+      - localdb
     restart: unless-stopped
 
   frontend:
@@ -28,3 +44,6 @@ services:
     ports:
       - "3000:3000"
     restart: unless-stopped
+
+volumes:
+  localdb_data:

@@ -26,4 +26,9 @@ test.describe("Playground", () => {
         await page.goto("/dashboard/playground");
         await expect(page.getByText("Execution Info")).toBeVisible();
     });
+
+    test("displays connection selector", async ({ page }) => {
+        await page.goto("/dashboard/playground");
+        await expect(page.getByText("Connection")).toBeVisible();
+    });
 });

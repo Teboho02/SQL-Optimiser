@@ -34,6 +34,24 @@ export interface ITestConnectionResponse {
     message: string;
 }
 
+/** Maps backend DumpStatus enum index to a display label. */
+export const DUMP_STATUS_LABELS: Record<number, string> = {
+    0: "No Dump",
+    1: "Dump Pending",
+    2: "Dumping",
+    3: "Dumped",
+    4: "Dump Failed",
+};
+
+/** Maps backend RestoreStatus enum index to a display label. */
+export const RESTORE_STATUS_LABELS: Record<number, string> = {
+    0: "Not Restored",
+    1: "Restore Pending",
+    2: "Restoring",
+    3: "Restored",
+    4: "Restore Failed",
+};
+
 export interface IDatabaseConnectionDto {
     id: string;
     name: string;
@@ -42,6 +60,10 @@ export interface IDatabaseConnectionDto {
     dbUser: string;
     databaseType: number;
     lastSyncTime: string;
+    dumpStatus: number;
+    restoreStatus: number;
+    localConnectionString: string | null;
+    lastRestoreTime: string | null;
 }
 
 /** Fetches all saved database connections for the current tenant. */

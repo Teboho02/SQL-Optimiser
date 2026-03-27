@@ -44,4 +44,15 @@ public class DatabaseConnection : FullAuditedEntity<Guid>
 
     [MaxLength(1000)]
     public string DumpErrorMessage { get; set; }
+
+    // Restore tracking
+    public RestoreStatus RestoreStatus { get; set; } = RestoreStatus.None;
+
+    [MaxLength(500)]
+    public string LocalConnectionString { get; set; }
+
+    public DateTime? LastRestoreTime { get; set; }
+
+    [MaxLength(1000)]
+    public string RestoreErrorMessage { get; set; }
 }

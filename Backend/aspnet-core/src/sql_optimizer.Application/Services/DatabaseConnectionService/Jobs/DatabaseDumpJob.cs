@@ -12,17 +12,22 @@ namespace sql_optimizer.Services.DatabaseConnectionService.Jobs;
 
 /// <summary>
 /// Background job that runs pg_dump against the saved connection and
-/// stores the resulting SQL file on the server.
+/// stores the resulting SQL file on the server. On success a restore job
+/// is automatically enqueued.
 /// </summary>
 [UnitOfWork]
 public class DatabaseDumpJob
     : AsyncBackgroundJob<DatabaseDumpArgs>, ITransientDependency
 {
     private readonly IRepository<DatabaseConnection, Guid> _repository;
+    private readonly IBackgroundJobManager _backgroundJobManager;
 
-    public DatabaseDumpJob(IRepository<DatabaseConnection, Guid> repository)
+    public DatabaseDumpJob(
+        IRepository<DatabaseConnection, Guid> repository,
+        IBackgroundJobManager backgroundJobManager)
     {
         _repository = repository;
+        _backgroundJobManager = backgroundJobManager;
     }
 
     public override async Task ExecuteAsync(DatabaseDumpArgs args)
@@ -71,9 +76,21 @@ public class DatabaseDumpJob
         await _repository.UpdateAsync(connection);
 
         if (succeeded)
+        {
             Logger.Info($"[DatabaseDumpJob] Dump completed for connection {args.ConnectionId}. File: {dumpFilePath}");
+
+            connection.RestoreStatus = RestoreStatus.Pending;
+            await _repository.UpdateAsync(connection);
+
+            await _backgroundJobManager.EnqueueAsync<DatabaseRestoreJob, DatabaseRestoreArgs>(
+                new DatabaseRestoreArgs { ConnectionId = args.ConnectionId });
+
+            Logger.Info($"[DatabaseDumpJob] Enqueued restore job for connection {args.ConnectionId}.");
+        }
         else
+        {
             Logger.Warn($"[DatabaseDumpJob] Dump failed for connection {args.ConnectionId}. Error: {errorMessage}");
+        }
     }
 
     private static async Task<(int exitCode, string stderr)> RunPgDumpAsync(

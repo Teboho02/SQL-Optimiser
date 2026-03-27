@@ -1,0 +1,22 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Abp.Application.Services;
+using sql_optimizer.Services.QueryExecutionService.DTO;
+
+namespace sql_optimizer.Services.QueryExecutionService;
+
+/// <summary>
+/// Application service contract for executing SQL queries against a restored local database.
+/// </summary>
+public interface IQueryExecutionAppService : IApplicationService
+{
+    /// <summary>
+    /// Executes a SQL query against the local copy of the given connection's database.
+    /// </summary>
+    Task<ExecuteQueryOutput> ExecuteAsync(ExecuteQueryInput input);
+
+    /// <summary>
+    /// Returns all user tables and their columns from the local copy of the given connection's database.
+    /// </summary>
+    Task<List<SchemaTableDto>> GetSchemaAsync(GetSchemaInput input);
+}

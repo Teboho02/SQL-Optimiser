@@ -26,4 +26,9 @@ public interface IDatabaseConnectionAppService
     /// Manually enqueues a database dump for an existing connection.
     /// </summary>
     Task TriggerDumpAsync(Guid connectionId);
+
+    /// <summary>
+    /// Manually enqueues a restore of the latest dump into the local server database.
+    /// </summary>
+    Task TriggerRestoreAsync(Guid connectionId);
 }

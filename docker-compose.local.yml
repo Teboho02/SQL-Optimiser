@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: Backend/aspnet-core
+      dockerfile: src/sql_optimizer.Web.Host/Dockerfile
+    ports:
+      - "44311:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Kestrel__Endpoints__Http__Url: "http://+:80"
+      ConnectionStrings__Default: ${DB_CONNECTION_STRING}
+      Authentication__JwtBearer__IsEnabled: "true"
+      Authentication__JwtBearer__SecurityKey: ${JWT_SECURITY_KEY}
+      Authentication__JwtBearer__Issuer: "sql_optimizer"
+      Authentication__JwtBearer__Audience: "sql_optimizer"
+      App__ServerRootAddress: "http://localhost:44311/"
+      App__ClientRootAddress: "http://localhost:3000/"
+      App__CorsOrigins: "http://localhost:3000,http://localhost:3001"
+    volumes:
+      - ./Backend-Logs:/app/App_Data/Logs
+      - ./Backend-Dumps:/app/App_Data/Dumps
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

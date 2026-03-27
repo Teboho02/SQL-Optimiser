@@ -3,6 +3,7 @@
 import { Button } from "antd";
 import { ArrowRightOutlined, CodeOutlined } from "@ant-design/icons";
 import React from "react";
+import Link from "next/link";
 import { useStyles } from "./style/styles";
 
 /** Hero section with badge, headline, subheading, and CTA buttons. */
@@ -25,15 +26,17 @@ const HeroSection: React.FC = () => {
                 for maximum performance. Built for production databases.
             </p>
             <div className={styles.ctaRow}>
-                <Button
-                    type="primary"
-                    size="large"
-                    icon={<ArrowRightOutlined />}
-                    iconPosition="end"
-                    className={styles.primaryButton}
-                >
-                    Start Optimising Free
-                </Button>
+                <Link href="/login">
+                    <Button
+                        type="primary"
+                        size="large"
+                        icon={<ArrowRightOutlined />}
+                        iconPosition="end"
+                        className={styles.primaryButton}
+                    >
+                        Start Optimising Free
+                    </Button>
+                </Link>
                 <Button
                     size="large"
                     icon={<CodeOutlined />}

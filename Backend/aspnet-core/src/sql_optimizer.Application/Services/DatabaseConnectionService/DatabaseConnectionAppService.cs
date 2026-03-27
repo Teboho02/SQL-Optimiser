@@ -2,11 +2,13 @@ using System;
 using System.Threading.Tasks;
 using Abp.Application.Services;
 using Abp.Authorization;
+using Abp.BackgroundJobs;
 using Abp.Domain.Repositories;
 using Abp.UI;
 using Npgsql;
 using sql_optimizer.Core.Domains.Database;
 using sql_optimizer.Services.DatabaseConnectionService.DTO;
+using sql_optimizer.Services.DatabaseConnectionService.Jobs;
 
 namespace sql_optimizer.Services.DatabaseConnectionService;
 
@@ -19,9 +21,14 @@ public class DatabaseConnectionAppService
     : AsyncCrudAppService<DatabaseConnection, DatabaseConnectionDto, Guid>,
       IDatabaseConnectionAppService
 {
-    public DatabaseConnectionAppService(IRepository<DatabaseConnection, Guid> repository)
+    private readonly IBackgroundJobManager _backgroundJobManager;
+
+    public DatabaseConnectionAppService(
+        IRepository<DatabaseConnection, Guid> repository,
+        IBackgroundJobManager backgroundJobManager)
         : base(repository)
     {
+        _backgroundJobManager = backgroundJobManager;
     }
 
     /// <summary>
@@ -46,6 +53,7 @@ public class DatabaseConnectionAppService
 
     /// <summary>
     /// Tests the connection first, then saves it if the test passes.
+    /// Enqueues a dump job after a successful save.
     /// Throws a UserFriendlyException if the connection test fails.
     /// </summary>
     public async Task<DatabaseConnectionDto> SaveConnectionAsync(CreateDatabaseConnectionInput input)
@@ -75,13 +83,33 @@ public class DatabaseConnectionAppService
 
         var entity = ObjectMapper.Map<DatabaseConnection>(input);
         entity.LastSyncTime = DateTime.UtcNow;
+        entity.DumpStatus = DumpStatus.Pending;
 
         await Repository.InsertAsync(entity);
         await CurrentUnitOfWork.SaveChangesAsync();
 
-        Logger.Info($"[SaveConnection] Connection '{input.Name}' saved successfully. Id={entity.Id}");
+        Logger.Info($"[SaveConnection] Connection '{input.Name}' saved successfully. Id={entity.Id}. Enqueueing dump job.");
+
+        await _backgroundJobManager.EnqueueAsync<DatabaseDumpJob, DatabaseDumpArgs>(
+            new DatabaseDumpArgs { ConnectionId = entity.Id });
 
         return ObjectMapper.Map<DatabaseConnectionDto>(entity);
+    }
+
+    /// <summary>
+    /// Manually enqueues a database dump for an existing connection.
+    /// </summary>
+    public async Task TriggerDumpAsync(Guid connectionId)
+    {
+        var entity = await Repository.GetAsync(connectionId);
+        entity.DumpStatus = DumpStatus.Pending;
+        await Repository.UpdateAsync(entity);
+        await CurrentUnitOfWork.SaveChangesAsync();
+
+        Logger.Info($"[TriggerDump] Manually enqueueing dump for connection {connectionId}.");
+
+        await _backgroundJobManager.EnqueueAsync<DatabaseDumpJob, DatabaseDumpArgs>(
+            new DatabaseDumpArgs { ConnectionId = connectionId });
     }
 
     /// <summary>

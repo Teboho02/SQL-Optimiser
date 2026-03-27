@@ -21,4 +21,9 @@ public interface IDatabaseConnectionAppService
     /// Throws a UserFriendlyException if the connection test fails.
     /// </summary>
     Task<DatabaseConnectionDto> SaveConnectionAsync(CreateDatabaseConnectionInput input);
+
+    /// <summary>
+    /// Manually enqueues a database dump for an existing connection.
+    /// </summary>
+    Task TriggerDumpAsync(Guid connectionId);
 }

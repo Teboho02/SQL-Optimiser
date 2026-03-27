@@ -26,7 +26,16 @@ public class DatabaseConnectionDto : EntityDto<Guid>
     [MaxLength(100)]
     public string DbUser { get; set; }
 
+    [MaxLength(100)]
+    public string DatabaseName { get; set; }
+
     public DatabaseType DatabaseType { get; set; }
 
     public DateTime LastSyncTime { get; set; }
+
+    public DumpStatus DumpStatus { get; set; }
+
+    public string DumpFilePath { get; set; }
+
+    public DateTime? LastDumpTime { get; set; }
 }

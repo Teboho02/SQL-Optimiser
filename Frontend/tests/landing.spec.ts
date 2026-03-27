@@ -25,7 +25,7 @@ test.describe("LandingPage", () => {
         await page.goto("/");
         await expect(page.getByText("Schema-Aware AI")).toBeVisible();
         await expect(page.getByText("Intent Detection")).toBeVisible();
-        await expect(page.getByText("Verified Correctness")).toBeVisible();
+        await expect(page.getByText("Verified Correctness").first()).toBeVisible();
         await expect(page.getByText("Index Recommendations")).toBeVisible();
     });
 });

@@ -27,7 +27,21 @@ public class DatabaseConnection : FullAuditedEntity<Guid>
     [MaxLength(500)]
     public string DbPassword { get; set; }
 
+    [MaxLength(100)]
+    public string DatabaseName { get; set; }
+
     public DatabaseType DatabaseType { get; set; }
 
     public DateTime LastSyncTime { get; set; }
+
+    // Dump tracking
+    public DumpStatus DumpStatus { get; set; } = DumpStatus.None;
+
+    [MaxLength(500)]
+    public string DumpFilePath { get; set; }
+
+    public DateTime? LastDumpTime { get; set; }
+
+    [MaxLength(1000)]
+    public string DumpErrorMessage { get; set; }
 }

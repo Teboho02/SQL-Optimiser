@@ -14,61 +14,61 @@ namespace sql_optimizer.Services.DatabaseConnectionService.Jobs;
 /// Background job that runs pg_dump against the saved connection and
 /// stores the resulting SQL file on the server.
 /// </summary>
+[UnitOfWork]
 public class DatabaseDumpJob
     : AsyncBackgroundJob<DatabaseDumpArgs>, ITransientDependency
 {
     private readonly IRepository<DatabaseConnection, Guid> _repository;
-    private readonly IUnitOfWorkManager _unitOfWorkManager;
 
-    public DatabaseDumpJob(
-        IRepository<DatabaseConnection, Guid> repository,
-        IUnitOfWorkManager unitOfWorkManager)
+    public DatabaseDumpJob(IRepository<DatabaseConnection, Guid> repository)
     {
         _repository = repository;
-        _unitOfWorkManager = unitOfWorkManager;
     }
 
     public override async Task ExecuteAsync(DatabaseDumpArgs args)
     {
         Logger.Info($"[DatabaseDumpJob] Starting dump for connection {args.ConnectionId}");
 
-        DatabaseConnection connection;
+        var connection = await _repository.GetAsync(args.ConnectionId);
+        connection.DumpStatus = DumpStatus.InProgress;
+        await _repository.UpdateAsync(connection);
+        await CurrentUnitOfWork.SaveChangesAsync();
 
-        using (var uow = _unitOfWorkManager.Begin())
-        {
-            connection = await _repository.GetAsync(args.ConnectionId);
-            connection.DumpStatus = DumpStatus.InProgress;
-            await _repository.UpdateAsync(connection);
-            await uow.CompleteAsync();
-        }
-
-        string dumpFilePath = null;
+        var dumpFilePath = GetDumpFilePath(args.ConnectionId);
         string errorMessage = null;
         var succeeded = false;
 
         try
         {
-            dumpFilePath = GetDumpFilePath(args.ConnectionId);
             Directory.CreateDirectory(Path.GetDirectoryName(dumpFilePath)!);
+            var (exitCode, stderr) = await RunPgDumpAsync(connection, dumpFilePath);
 
-            succeeded = await RunPgDumpAsync(connection, dumpFilePath);
+            if (exitCode != 0)
+            {
+                errorMessage = $"pg_dump exited with code {exitCode}. {stderr}".Trim();
+                Logger.Warn($"[DatabaseDumpJob] {errorMessage}");
+            }
+            else if (!File.Exists(dumpFilePath))
+            {
+                errorMessage = "pg_dump exited successfully but no dump file was created.";
+                Logger.Warn($"[DatabaseDumpJob] {errorMessage}");
+            }
+            else
+            {
+                succeeded = true;
+            }
         }
         catch (Exception ex)
         {
-            Logger.Error($"[DatabaseDumpJob] Unexpected error for connection {args.ConnectionId}: {ex.Message}", ex);
             errorMessage = ex.Message;
+            Logger.Error($"[DatabaseDumpJob] Unexpected error for connection {args.ConnectionId}: {ex.Message}", ex);
         }
 
-        using (var uow = _unitOfWorkManager.Begin())
-        {
-            var entity = await _repository.GetAsync(args.ConnectionId);
-            entity.DumpStatus = succeeded ? DumpStatus.Completed : DumpStatus.Failed;
-            entity.LastDumpTime = DateTime.UtcNow;
-            entity.DumpFilePath = succeeded ? dumpFilePath : null;
-            entity.DumpErrorMessage = succeeded ? null : errorMessage;
-            await _repository.UpdateAsync(entity);
-            await uow.CompleteAsync();
-        }
+        connection.DumpStatus = succeeded ? DumpStatus.Completed : DumpStatus.Failed;
+        connection.LastDumpTime = DateTime.UtcNow;
+        connection.DumpFilePath = succeeded ? dumpFilePath : null;
+        connection.DumpErrorMessage = succeeded ? null : errorMessage;
+        await _repository.UpdateAsync(connection);
 
         if (succeeded)
             Logger.Info($"[DatabaseDumpJob] Dump completed for connection {args.ConnectionId}. File: {dumpFilePath}");
@@ -76,39 +76,33 @@ public class DatabaseDumpJob
             Logger.Warn($"[DatabaseDumpJob] Dump failed for connection {args.ConnectionId}. Error: {errorMessage}");
     }
 
-    private async Task<bool> RunPgDumpAsync(DatabaseConnection connection, string outputPath)
+    private static async Task<(int exitCode, string stderr)> RunPgDumpAsync(
+        DatabaseConnection connection, string outputPath)
     {
         var database = string.IsNullOrWhiteSpace(connection.DatabaseName) ? "postgres" : connection.DatabaseName;
         var connString = $"postgresql://{connection.DbUser}:{Uri.EscapeDataString(connection.DbPassword)}@{connection.DbHost}:{connection.DbPort}/{database}";
 
-        Logger.Debug($"[DatabaseDumpJob] Running pg_dump for host={connection.DbHost}, db={database}");
-
         var psi = new ProcessStartInfo
         {
             FileName = "pg_dump",
-            Arguments = $"--no-password --format=plain --file={outputPath} {connString}",
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
-        using var process = Process.Start(psi);
-        if (process == null)
-        {
-            Logger.Error("[DatabaseDumpJob] Failed to start pg_dump process.");
-            return false;
-        }
+        // Pass each argument separately to avoid shell-parsing issues with special characters
+        psi.ArgumentList.Add("--no-password");
+        psi.ArgumentList.Add("--format=plain");
+        psi.ArgumentList.Add($"--file={outputPath}");
+        psi.ArgumentList.Add(connString);
+
+        using var process = Process.Start(psi)
+            ?? throw new InvalidOperationException("Failed to start pg_dump process.");
 
         var stderr = await process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
 
-        if (process.ExitCode != 0)
-        {
-            Logger.Warn($"[DatabaseDumpJob] pg_dump exited with code {process.ExitCode}. stderr: {stderr}");
-            return false;
-        }
-
-        return true;
+        return (process.ExitCode, stderr);
     }
 
     private static string GetDumpFilePath(Guid connectionId)

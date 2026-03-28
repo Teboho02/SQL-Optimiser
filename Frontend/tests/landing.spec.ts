@@ -11,9 +11,9 @@ test.describe("LandingPage", () => {
         await expect(page).toHaveURL("/");
     });
 
-    test("shows SQL Optimiser logo in navbar", async ({ page }) => {
+    test("shows SQL Ninja logo in navbar", async ({ page }) => {
         await page.goto("/");
-        await expect(page.getByText("SQL Optimiser")).toBeVisible();
+        await expect(page.getByText("SQL Ninja")).toBeVisible();
     });
 
     test("shows Get Started button", async ({ page }) => {

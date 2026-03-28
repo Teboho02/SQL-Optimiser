@@ -43,7 +43,7 @@ const DashboardSidebar: React.FC<IDashboardSidebarProps> = ({ onNavClick }) => {
         <div className={styles.sidebar}>
             <div className={styles.logoArea}>
                 <ThunderboltFilled className={styles.logoIcon} />
-                <span className={styles.logoText}>SQL Optimiser</span>
+                <span className={styles.logoText}>SQL Ninja</span>
             </div>
             <div className={styles.nav}>
                 <Menu

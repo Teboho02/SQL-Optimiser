@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "SQL Optimiser — Stop guessing why your queries are slow",
+    title: "SQL Ninja — Stop guessing why your queries are slow",
     description: "AI-powered SQL analysis that understands your schema, detects intent, and rewrites queries for maximum performance.",
 };
 

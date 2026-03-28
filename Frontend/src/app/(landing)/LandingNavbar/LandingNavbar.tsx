@@ -14,7 +14,7 @@ const LandingNavbar: React.FC = () => {
         <nav className={styles.navbar}>
             <div className={styles.logo}>
                 <ThunderboltFilled className={styles.logoIcon} />
-                <span className={styles.logoText}>SQL Optimiser</span>
+                <span className={styles.logoText}>SQL Ninja</span>
             </div>
             <div className={styles.navActions}>
                 <Link href="/login" className={styles.signInLink}>Sign in</Link>

@@ -60,6 +60,7 @@ export interface IDatabaseConnectionDto {
     dbUser: string;
     databaseType: number;
     lastSyncTime: string;
+    schemaOnly: boolean;
     dumpStatus: number;
     restoreStatus: number;
     localConnectionString: string | null;

@@ -31,4 +31,9 @@ test.describe("Playground", () => {
         await page.goto("/dashboard/playground");
         await expect(page.getByText("Connection")).toBeVisible();
     });
+
+    test("SchemaPanel shows placeholder when no connection is selected", async ({ page }) => {
+        await page.goto("/dashboard/playground");
+        await expect(page.getByText("Select a connection to view schema")).toBeVisible();
+    });
 });

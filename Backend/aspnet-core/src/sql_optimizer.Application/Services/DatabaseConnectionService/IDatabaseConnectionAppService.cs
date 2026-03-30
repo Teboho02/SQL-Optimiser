@@ -23,6 +23,12 @@ public interface IDatabaseConnectionAppService
     Task<DatabaseConnectionDto> SaveConnectionAsync(CreateDatabaseConnectionInput input);
 
     /// <summary>
+    /// Updates the DatabaseName and SchemaOnly settings of an existing connection,
+    /// then re-triggers the dump pipeline so the change takes effect immediately.
+    /// </summary>
+    Task UpdateSettingsAsync(UpdateConnectionSettingsInput input);
+
+    /// <summary>
     /// Manually enqueues a database dump for an existing connection.
     /// </summary>
     Task TriggerDumpAsync(Guid connectionId);

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Abp.Application.Services;
@@ -18,7 +19,7 @@ public interface IQueryExecutionAppService : IApplicationService
     /// <summary>
     /// Returns all user tables and their columns from the local copy of the given connection's database.
     /// </summary>
-    Task<List<SchemaTableDto>> GetSchemaAsync(GetSchemaInput input);
+    Task<List<SchemaTableDto>> GetSchemaAsync(Guid connectionId);
 
     /// <summary>
     /// Runs EXPLAIN ANALYZE on the query, then asks the AI to suggest an optimised version.

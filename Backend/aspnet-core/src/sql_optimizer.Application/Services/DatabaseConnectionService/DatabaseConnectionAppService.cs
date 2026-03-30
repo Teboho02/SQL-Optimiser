@@ -97,6 +97,24 @@ public class DatabaseConnectionAppService
     }
 
     /// <summary>
+    /// Updates DatabaseName and SchemaOnly on an existing connection, then re-triggers the dump.
+    /// </summary>
+    public async Task UpdateSettingsAsync(UpdateConnectionSettingsInput input)
+    {
+        var entity = await Repository.GetAsync(input.Id);
+        entity.DatabaseName = input.DatabaseName;
+        entity.SchemaOnly = input.SchemaOnly;
+        entity.DumpStatus = DumpStatus.Pending;
+        await Repository.UpdateAsync(entity);
+        await CurrentUnitOfWork.SaveChangesAsync();
+
+        Logger.Info($"[UpdateSettings] Updated settings for connection {input.Id}. DatabaseName={input.DatabaseName}, SchemaOnly={input.SchemaOnly}. Enqueueing dump.");
+
+        await _backgroundJobManager.EnqueueAsync<DatabaseDumpJob, DatabaseDumpArgs>(
+            new DatabaseDumpArgs { ConnectionId = entity.Id, SchemaOnly = entity.SchemaOnly });
+    }
+
+    /// <summary>
     /// Manually enqueues a database dump for an existing connection.
     /// </summary>
     public async Task TriggerDumpAsync(Guid connectionId)

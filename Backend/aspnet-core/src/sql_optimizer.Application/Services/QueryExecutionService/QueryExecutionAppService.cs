@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Abp.Application.Services;
 using Abp.Authorization;
 using Abp.Domain.Repositories;
+using Abp.UI;
 using Npgsql;
 using OpenAI.Chat;
 using sql_optimizer.Core.Domains.Database;
@@ -81,11 +82,11 @@ public class QueryExecutionAppService : ApplicationService, IQueryExecutionAppSe
     }
 
     /// <inheritdoc />
-    public async Task<List<SchemaTableDto>> GetSchemaAsync(GetSchemaInput input)
+    public async Task<List<SchemaTableDto>> GetSchemaAsync(Guid connectionId)
     {
-        var connectionString = await GetLocalConnectionStringAsync(input.ConnectionId);
+        var connectionString = await GetLocalConnectionStringAsync(connectionId);
         if (connectionString is null)
-            return [];
+            throw new UserFriendlyException("The local database for this connection no longer exists. Please re-run the restore.");
 
         try
         {
@@ -94,15 +95,19 @@ public class QueryExecutionAppService : ApplicationService, IQueryExecutionAppSe
 
             const string sql = """
                 SELECT
-                    t.table_name,
+                    CASE WHEN t.table_schema = 'public' THEN t.table_name
+                         ELSE t.table_schema || '.' || t.table_name
+                    END AS table_name,
                     c.column_name
                 FROM information_schema.tables t
                 JOIN information_schema.columns c
                     ON c.table_schema = t.table_schema
                     AND c.table_name  = t.table_name
-                WHERE t.table_schema = 'public'
-                  AND t.table_type   = 'BASE TABLE'
-                ORDER BY t.table_name, c.ordinal_position;
+                WHERE t.table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
+                  AND t.table_schema NOT LIKE 'pg_temp_%'
+                  AND t.table_schema NOT LIKE 'pg_toast_temp_%'
+                  AND t.table_type = 'BASE TABLE'
+                ORDER BY t.table_schema, t.table_name, c.ordinal_position;
                 """;
 
             await using var cmd = new NpgsqlCommand(sql, conn);
@@ -127,8 +132,8 @@ public class QueryExecutionAppService : ApplicationService, IQueryExecutionAppSe
         }
         catch (Exception ex)
         {
-            Logger.Error($"[QueryExecution] Schema fetch failed for connection {input.ConnectionId}: {ex.Message}", ex);
-            return [];
+            Logger.Error($"[QueryExecution] Schema fetch failed for connection {connectionId}: {ex.Message}", ex);
+            throw new UserFriendlyException($"Could not read schema: {ex.Message}");
         }
     }
 
@@ -164,7 +169,7 @@ public class QueryExecutionAppService : ApplicationService, IQueryExecutionAppSe
         }
 
         // 2. Fetch schema for context
-        var schema = await GetSchemaAsync(new GetSchemaInput { ConnectionId = input.ConnectionId });
+        var schema = await GetSchemaAsync(input.ConnectionId);
         var schemaText = string.Join("\n", schema.Select(t =>
             $"  {t.Name}({string.Join(", ", t.Columns)})"));
 

@@ -98,7 +98,9 @@ public class DatabaseDumpJob
         DatabaseConnection connection, string outputPath, bool schemaOnly)
     {
         var database = string.IsNullOrWhiteSpace(connection.DatabaseName) ? "postgres" : connection.DatabaseName;
-        var connString = $"postgresql://{connection.DbUser}:{Uri.EscapeDataString(connection.DbPassword)}@{connection.DbHost}:{connection.DbPort}/{database}";
+        // Strip pooler suffix — pg_dump requires a direct (non-pooled) connection
+        var host = connection.DbHost.Replace("-pooler", "", StringComparison.OrdinalIgnoreCase);
+        var connString = $"postgresql://{connection.DbUser}:{Uri.EscapeDataString(connection.DbPassword)}@{host}:{connection.DbPort}/{database}?sslmode=require";
 
         var psi = new ProcessStartInfo
         {

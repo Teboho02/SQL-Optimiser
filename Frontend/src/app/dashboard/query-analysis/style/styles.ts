@@ -135,7 +135,7 @@ export const useStyles = createStyles(({ token }) => ({
         background: ${token.colorBgContainer};
         border: 1px solid ${token.colorBorder};
         border-radius: 12px;
-        overflow: hidden;
+        overflow-y: auto;
     `,
 
     emptyState: css`
@@ -202,7 +202,7 @@ export const useStyles = createStyles(({ token }) => ({
     `,
 
     planBlock: css`
-        flex: 1;
+        flex: none;
         overflow: auto;
         margin: 0;
         padding: 16px 20px;

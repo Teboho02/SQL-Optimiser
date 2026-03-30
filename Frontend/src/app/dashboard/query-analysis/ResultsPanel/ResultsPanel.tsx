@@ -120,7 +120,7 @@ const ResultsPanel: React.FC<IResultsPanelProps> = ({
                             Benchmark
                         </Button>
                     </div>
-                    <pre className={styles.planBlock} style={{ flex: "none" }}>{result.suggestedQuery}</pre>
+                    <pre className={styles.planBlock}>{result.suggestedQuery}</pre>
                 </>
             )}
             {benchmarkError && (

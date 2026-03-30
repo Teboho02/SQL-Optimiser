@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Input } from "antd";
+import { Input, Spin, Alert } from "antd";
 import { TableOutlined, BorderOutlined, SearchOutlined, RightOutlined } from "@ant-design/icons";
 import { useStyles } from "../style/styles";
 
@@ -16,10 +16,13 @@ interface ISchemaTable {
 interface ISchemaPanelProps {
     /** Tables to display in the schema browser. */
     tables: ISchemaTable[];
+    isLoading: boolean;
+    error: string | null;
+    hasConnection: boolean;
 }
 
 /** Left panel displaying a filterable tree of database tables and their columns. */
-const SchemaPanel: React.FC<ISchemaPanelProps> = ({ tables }) => {
+const SchemaPanel: React.FC<ISchemaPanelProps> = ({ tables, isLoading, error, hasConnection }) => {
     const { styles } = useStyles();
     const [filter, setFilter] = useState<string>("");
     const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set(["users"]));
@@ -57,7 +60,21 @@ const SchemaPanel: React.FC<ISchemaPanelProps> = ({ tables }) => {
                 />
             </div>
             <div className={styles.schemaBody}>
-                {filteredTables.map((table) => {
+                {isLoading ? (
+                    <div style={{ display: "flex", justifyContent: "center", padding: 24 }}>
+                        <Spin />
+                    </div>
+                ) : error ? (
+                    <Alert type="error" message={error} style={{ margin: 8 }} />
+                ) : !hasConnection ? (
+                    <div style={{ padding: 16, color: "#8c8c8c", fontSize: 13, textAlign: "center" }}>
+                        Select a connection to view schema
+                    </div>
+                ) : filteredTables.length === 0 ? (
+                    <div style={{ padding: 16, color: "#8c8c8c", fontSize: 13, textAlign: "center" }}>
+                        No tables found
+                    </div>
+                ) : filteredTables.map((table) => {
                     const isExpanded = expandedTables.has(table.name);
                     return (
                         <React.Fragment key={table.name}>

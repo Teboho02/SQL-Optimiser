@@ -8,10 +8,11 @@ import { useStyles } from "../style/styles";
 interface IConnectionCardListProps {
     databases: IDatabase[];
     isLoading: boolean;
+    onEdit: (id: string) => void;
 }
 
 /** Grid of all registered database connection cards. */
-const ConnectionCardList: React.FC<IConnectionCardListProps> = ({ databases, isLoading }) => {
+const ConnectionCardList: React.FC<IConnectionCardListProps> = ({ databases, isLoading, onEdit }) => {
     const { styles } = useStyles();
 
     if (isLoading) {
@@ -31,7 +32,7 @@ const ConnectionCardList: React.FC<IConnectionCardListProps> = ({ databases, isL
     return (
         <div className={styles.cardsGrid}>
             {databases.map((database) => (
-                <ConnectionCard key={database.id} database={database} />
+                <ConnectionCard key={database.id} database={database} onEdit={() => onEdit(database.id)} />
             ))}
         </div>
     );

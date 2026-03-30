@@ -58,6 +58,7 @@ export interface IDatabaseConnectionDto {
     dbHost: string;
     dbPort: number;
     dbUser: string;
+    databaseName: string | null;
     databaseType: number;
     lastSyncTime: string;
     schemaOnly: boolean;
@@ -77,6 +78,29 @@ export async function getDatabaseConnections(): Promise<IDatabaseConnectionDto[]
 
     const json = await response.json();
     return (json.result?.items ?? []) as IDatabaseConnectionDto[];
+}
+
+export interface IUpdateConnectionSettingsRequest {
+    id: string;
+    databaseName: string | undefined;
+    schemaOnly: boolean;
+}
+
+/** Updates the DatabaseName and SchemaOnly settings of an existing connection. */
+export async function updateConnectionSettings(request: IUpdateConnectionSettingsRequest): Promise<void> {
+    const response = await fetch(API_CONSTANTS.UPDATE_CONNECTION_SETTINGS, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${tokenService.getToken()}`,
+        },
+        body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        throw new Error(json.error?.message ?? "Failed to update connection settings.");
+    }
 }
 
 /** Calls the backend test-connection endpoint and returns the result. */

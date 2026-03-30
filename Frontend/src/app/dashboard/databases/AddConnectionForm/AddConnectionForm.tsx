@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button, Input, Select, notification } from "antd";
+import { Button, Input, Select, Switch, notification } from "antd";
 import { DatabaseOutlined, KeyOutlined, CodeOutlined } from "@ant-design/icons";
 import { testConnection, DATABASE_TYPE_MAP } from "@/services/databaseConnectionService";
 import { API_CONSTANTS } from "@/constants/ApiConstants";
@@ -49,6 +49,7 @@ interface IAddConnectionFormProps {
 const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
     const { styles } = useStyles();
     const [values, setValues] = useState<IConnectionFormValues>(INITIAL_VALUES);
+    const [schemaOnly, setSchemaOnly] = useState<boolean>(false);
     const [isTesting, setIsTesting] = useState<boolean>(false);
     const [isSaving, setIsSaving] = useState<boolean>(false);
 
@@ -115,6 +116,7 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
                     dbPassword: values.password,
                     databaseType: DATABASE_TYPE_MAP[values.engine] ?? 2,
                     requireSsl: true,
+                    schemaOnly,
                 }),
             });
 
@@ -123,6 +125,7 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
             if (json.success) {
                 notification.success({ message: "Connection saved successfully!" });
                 setValues(INITIAL_VALUES);
+                setSchemaOnly(false);
                 onSaved();
             } else {
                 const errorMessage = json.error?.details ?? json.error?.message ?? "An unexpected error occurred.";
@@ -195,6 +198,16 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
                         prefix={<KeyOutlined />}
                     />
                 </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <Switch
+                    id="conn-schema-only"
+                    checked={schemaOnly}
+                    onChange={setSchemaOnly}
+                />
+                <label htmlFor="conn-schema-only" className={styles.formLabel} style={{ margin: 0 }}>
+                    Schema only (copy structure, no data)
+                </label>
             </div>
             <div className={styles.formFooter}>
                 <Button

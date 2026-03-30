@@ -36,4 +36,7 @@ public class CreateDatabaseConnectionInput
 
     /// <summary>Whether SSL is required for this connection.</summary>
     public bool RequireSsl { get; set; } = true;
+
+    /// <summary>When true, only the schema (DDL) is dumped — no row data.</summary>
+    public bool SchemaOnly { get; set; } = false;
 }

@@ -13,7 +13,7 @@ test.describe("DashboardPage", () => {
 
     test("shows sidebar navigation", async ({ page }) => {
         await page.goto("/dashboard");
-        await expect(page.getByText("SQL Optimiser")).toBeVisible();
+        await expect(page.getByText("SQL Ninja")).toBeVisible();
         await expect(page.getByText("Dashboard")).toBeVisible();
         await expect(page.getByText("Query Analysis")).toBeVisible();
     });

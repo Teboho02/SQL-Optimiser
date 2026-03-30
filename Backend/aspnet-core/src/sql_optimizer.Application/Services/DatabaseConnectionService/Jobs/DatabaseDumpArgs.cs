@@ -7,4 +7,5 @@ namespace sql_optimizer.Services.DatabaseConnectionService.Jobs;
 public class DatabaseDumpArgs
 {
     public Guid ConnectionId { get; set; }
+    public bool SchemaOnly { get; set; }
 }

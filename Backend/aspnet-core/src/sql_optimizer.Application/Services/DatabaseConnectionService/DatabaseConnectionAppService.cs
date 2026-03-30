@@ -91,7 +91,7 @@ public class DatabaseConnectionAppService
         Logger.Info($"[SaveConnection] Connection '{input.Name}' saved successfully. Id={entity.Id}. Enqueueing dump job.");
 
         await _backgroundJobManager.EnqueueAsync<DatabaseDumpJob, DatabaseDumpArgs>(
-            new DatabaseDumpArgs { ConnectionId = entity.Id });
+            new DatabaseDumpArgs { ConnectionId = entity.Id, SchemaOnly = entity.SchemaOnly });
 
         return ObjectMapper.Map<DatabaseConnectionDto>(entity);
     }
@@ -109,7 +109,7 @@ public class DatabaseConnectionAppService
         Logger.Info($"[TriggerDump] Manually enqueueing dump for connection {connectionId}.");
 
         await _backgroundJobManager.EnqueueAsync<DatabaseDumpJob, DatabaseDumpArgs>(
-            new DatabaseDumpArgs { ConnectionId = connectionId });
+            new DatabaseDumpArgs { ConnectionId = connectionId, SchemaOnly = entity.SchemaOnly });
     }
 
     /// <summary>

@@ -34,6 +34,9 @@ public class DatabaseConnection : FullAuditedEntity<Guid>
 
     public DateTime LastSyncTime { get; set; }
 
+    /// <summary>When true, only the schema (DDL) is dumped — no row data.</summary>
+    public bool SchemaOnly { get; set; } = false;
+
     // Dump tracking
     public DumpStatus DumpStatus { get; set; } = DumpStatus.None;
 

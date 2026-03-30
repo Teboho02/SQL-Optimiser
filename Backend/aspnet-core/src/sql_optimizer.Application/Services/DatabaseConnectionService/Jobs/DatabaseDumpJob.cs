@@ -40,13 +40,14 @@ public class DatabaseDumpJob
         await CurrentUnitOfWork.SaveChangesAsync();
 
         var dumpFilePath = GetDumpFilePath(args.ConnectionId);
+        var schemaOnly = args.SchemaOnly;
         string errorMessage = null;
         var succeeded = false;
 
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(dumpFilePath)!);
-            var (exitCode, stderr) = await RunPgDumpAsync(connection, dumpFilePath);
+            var (exitCode, stderr) = await RunPgDumpAsync(connection, dumpFilePath, schemaOnly);
 
             if (exitCode != 0)
             {
@@ -94,7 +95,7 @@ public class DatabaseDumpJob
     }
 
     private static async Task<(int exitCode, string stderr)> RunPgDumpAsync(
-        DatabaseConnection connection, string outputPath)
+        DatabaseConnection connection, string outputPath, bool schemaOnly)
     {
         var database = string.IsNullOrWhiteSpace(connection.DatabaseName) ? "postgres" : connection.DatabaseName;
         var connString = $"postgresql://{connection.DbUser}:{Uri.EscapeDataString(connection.DbPassword)}@{connection.DbHost}:{connection.DbPort}/{database}";
@@ -110,6 +111,8 @@ public class DatabaseDumpJob
         // Pass each argument separately to avoid shell-parsing issues with special characters
         psi.ArgumentList.Add("--no-password");
         psi.ArgumentList.Add("--format=plain");
+        if (schemaOnly)
+            psi.ArgumentList.Add("--schema-only");
         psi.ArgumentList.Add($"--file={outputPath}");
         psi.ArgumentList.Add(connString);
 

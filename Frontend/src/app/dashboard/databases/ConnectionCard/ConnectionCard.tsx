@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Button } from "antd";
-import { DatabaseOutlined } from "@ant-design/icons";
+import { DatabaseOutlined, EditOutlined } from "@ant-design/icons";
 import { useStyles } from "../style/styles";
 
 /** Connection status values for a database card. */
@@ -32,10 +32,11 @@ export interface IDatabase {
 
 interface IConnectionCardProps {
     database: IDatabase;
+    onEdit: () => void;
 }
 
 /** Card displaying a single database connection's metadata and status. */
-const ConnectionCard: React.FC<IConnectionCardProps> = ({ database }) => {
+const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit }) => {
     const { styles } = useStyles();
 
     return (
@@ -66,7 +67,7 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database }) => {
                 <span className={database.isLocalReady ? styles.badgeConnected : styles.badgeDisconnected}>
                     {database.restoreStatus}
                 </span>
-                <Button type="text" size="small">Configure</Button>
+                <Button type="text" size="small" icon={<EditOutlined />} onClick={onEdit}>Edit</Button>
             </div>
         </div>
     );

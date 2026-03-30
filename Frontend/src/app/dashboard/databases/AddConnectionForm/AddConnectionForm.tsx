@@ -29,6 +29,7 @@ interface IConnectionFormValues {
     port: string;
     username: string;
     password: string;
+    databaseName: string;
 }
 
 const INITIAL_VALUES: IConnectionFormValues = {
@@ -38,6 +39,7 @@ const INITIAL_VALUES: IConnectionFormValues = {
     port: "5432",
     username: "",
     password: "",
+    databaseName: "",
 };
 
 interface IAddConnectionFormProps {
@@ -78,6 +80,7 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
                 dbPort: parseInt(values.port, 10) || 5432,
                 dbUser: values.username,
                 dbPassword: values.password,
+                databaseName: values.databaseName || undefined,
                 databaseType: DATABASE_TYPE_MAP[values.engine] ?? 2,
                 requireSsl: true,
             });
@@ -114,6 +117,7 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
                     dbPort: parseInt(values.port, 10) || 5432,
                     dbUser: values.username,
                     dbPassword: values.password,
+                    databaseName: values.databaseName || undefined,
                     databaseType: DATABASE_TYPE_MAP[values.engine] ?? 2,
                     requireSsl: true,
                     schemaOnly,
@@ -196,6 +200,15 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
                         value={values.password}
                         onChange={(event) => setField("password", event.target.value)}
                         prefix={<KeyOutlined />}
+                    />
+                </div>
+                <div>
+                    <label className={styles.formLabel} htmlFor="conn-db-name">Database Name</label>
+                    <Input
+                        id="conn-db-name"
+                        value={values.databaseName}
+                        onChange={(event) => setField("databaseName", event.target.value)}
+                        placeholder="e.g. neondb"
                     />
                 </div>
             </div>

@@ -37,6 +37,8 @@ export default function PlaygroundPage(): React.JSX.Element {
     const [connections, setConnections] = useState<IDatabaseConnectionDto[]>([]);
     const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
     const [schemaTables, setSchemaTables] = useState<ISchemaTable[]>([]);
+    const [isLoadingSchema, setIsLoadingSchema] = useState(false);
+    const [schemaError, setSchemaError] = useState<string | null>(null);
 
     const [sqlText, setSqlText] = useState<string>(DEFAULT_SQL);
     const [queryResult, setQueryResult] = useState<IQueryResult | null>(null);
@@ -57,8 +59,17 @@ export default function PlaygroundPage(): React.JSX.Element {
 
     // Reload schema when connection changes
     const loadSchema = useCallback(async (connectionId: string): Promise<void> => {
-        const tables = await getSchema(connectionId);
-        setSchemaTables(tables);
+        setIsLoadingSchema(true);
+        setSchemaError(null);
+        try {
+            const tables = await getSchema(connectionId);
+            setSchemaTables(tables);
+        } catch {
+            setSchemaError("Failed to load schema.");
+            setSchemaTables([]);
+        } finally {
+            setIsLoadingSchema(false);
+        }
     }, []);
 
     useEffect(() => {
@@ -135,7 +146,12 @@ export default function PlaygroundPage(): React.JSX.Element {
                 />
             )}
             <div className={styles.threeColumnLayout}>
-                <SchemaPanel tables={schemaTables} />
+                <SchemaPanel
+                    tables={schemaTables}
+                    isLoading={isLoadingSchema}
+                    error={schemaError}
+                    hasConnection={!!selectedConnectionId}
+                />
                 <EditorPanel
                     sqlText={sqlText}
                     onSqlChange={setSqlText}

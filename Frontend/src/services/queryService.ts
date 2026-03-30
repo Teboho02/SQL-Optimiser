@@ -86,11 +86,15 @@ export async function benchmarkQuery(request: IBenchmarkRequest): Promise<IBench
 
 /** Fetches the schema (tables + columns) for the local copy of the given connection's database. */
 export async function getSchema(connectionId: string): Promise<ISchemaTable[]> {
-    const response = await fetch(API_CONSTANTS.GET_SCHEMA, {
-        method: "POST",
+    const url = `${API_CONSTANTS.GET_SCHEMA}?connectionId=${encodeURIComponent(connectionId)}`;
+    const response = await fetch(url, {
+        method: "GET",
         headers: authHeaders(),
-        body: JSON.stringify({ connectionId }),
     });
+
+    if (!response.ok) {
+        throw new Error(`Schema fetch failed: ${response.status}`);
+    }
 
     const json = await response.json();
     return (json.result ?? []) as ISchemaTable[];

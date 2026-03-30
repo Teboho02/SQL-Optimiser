@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import DatabasesHeader from "./DatabasesHeader/DatabasesHeader";
 import ConnectionCardList from "./ConnectionCardList/ConnectionCardList";
 import AddConnectionForm from "./AddConnectionForm/AddConnectionForm";
+import EditConnectionModal from "./EditConnectionModal/EditConnectionModal";
 import { getDatabaseConnections, IDatabaseConnectionDto, DATABASE_ENGINE_NAMES, RESTORE_STATUS_LABELS } from "@/services/databaseConnectionService";
 import { IDatabase } from "./ConnectionCard/ConnectionCard";
 
@@ -24,13 +25,16 @@ function mapToDatabase(dto: IDatabaseConnectionDto): IDatabase {
 
 /** Databases page — view registered connections and add new ones. */
 export default function DatabasesPage(): React.JSX.Element {
+    const [rawConnections, setRawConnections] = useState<IDatabaseConnectionDto[]>([]);
     const [databases, setDatabases] = useState<IDatabase[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [editingConnection, setEditingConnection] = useState<IDatabaseConnectionDto | null>(null);
 
     const fetchConnections = useCallback(async (): Promise<void> => {
         setIsLoading(true);
         try {
             const items = await getDatabaseConnections();
+            setRawConnections(items);
             setDatabases(items.map(mapToDatabase));
         } finally {
             setIsLoading(false);
@@ -41,11 +45,26 @@ export default function DatabasesPage(): React.JSX.Element {
         void fetchConnections();
     }, [fetchConnections]);
 
+    const handleEdit = (id: string): void => {
+        const connection = rawConnections.find((c) => c.id === id) ?? null;
+        setEditingConnection(connection);
+    };
+
+    const handleEditSaved = (): void => {
+        setEditingConnection(null);
+        void fetchConnections();
+    };
+
     return (
         <>
             <DatabasesHeader />
-            <ConnectionCardList databases={databases} isLoading={isLoading} />
+            <ConnectionCardList databases={databases} isLoading={isLoading} onEdit={handleEdit} />
             <AddConnectionForm onSaved={fetchConnections} />
+            <EditConnectionModal
+                connection={editingConnection}
+                onClose={() => setEditingConnection(null)}
+                onSaved={handleEditSaved}
+            />
         </>
     );
 }

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Button } from "antd";
-import { ArrowRightOutlined, TableOutlined } from "@ant-design/icons";
+import { ArrowRightOutlined, TableOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { useStyles } from "../style/styles";
 
 /** A single column in a schema table. */
@@ -52,6 +52,8 @@ interface IRefactoringPanelProps {
     detail: IRefactoringDetail;
     /** Called when the user clicks Generate Migration. */
     onGenerateMigration: () => void;
+    /** Called when the user clicks Benchmark Query. */
+    onBenchmark: () => void;
 }
 
 /** Renders a single schema table box with header and column rows. */
@@ -80,14 +82,17 @@ const SchemaTableBox: React.FC<{ table: ISchemaTableDef; styles: Record<string, 
 };
 
 /** Right panel showing the schema diff diagram and impact metrics for the selected recommendation. */
-const RefactoringPanel: React.FC<IRefactoringPanelProps> = ({ detail, onGenerateMigration }) => {
+const RefactoringPanel: React.FC<IRefactoringPanelProps> = ({ detail, onGenerateMigration, onBenchmark }) => {
     const { styles } = useStyles();
 
     return (
         <div className={styles.detailPanel}>
             <div className={styles.detailHeader}>
                 <h2 className={styles.detailTitle}>{detail.title}</h2>
-                <Button type="primary" onClick={onGenerateMigration}>Generate Migration</Button>
+                <div style={{ display: "flex", gap: 8 }}>
+                    <Button icon={<ThunderboltOutlined />} onClick={onBenchmark}>Benchmark Query</Button>
+                    <Button type="primary" onClick={onGenerateMigration}>Generate Migration</Button>
+                </div>
             </div>
             <div className={styles.schemaDiagram}>
                 <SchemaTableBox table={detail.currentTable} styles={styles} />

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Button, Select, Alert, Modal, Spin, Empty, Typography } from "antd";
-import { ScanOutlined, CopyOutlined } from "@ant-design/icons";
+import { Button, Select, Alert, Modal, Spin, Empty, Typography, Input, Table } from "antd";
+import type { TableProps } from "antd";
+import { ScanOutlined, CopyOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import RecommendationList from "./RecommendationList/RecommendationList";
 import RefactoringPanel from "./RefactoringPanel/RefactoringPanel";
 import { useStyles } from "./style/styles";
@@ -12,6 +13,7 @@ import {
     generateMigration,
     IRecommendationDto,
 } from "@/services/schemaAdvisorService";
+import { executeQuery } from "@/services/queryService";
 
 const { Text } = Typography;
 
@@ -31,6 +33,12 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
     const [migrationSql, setMigrationSql] = useState<string | null>(null);
     const [migrationError, setMigrationError] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
+
+    const [isBenchmarkModalOpen, setIsBenchmarkModalOpen] = useState(false);
+    const [benchmarkSql, setBenchmarkSql] = useState("");
+    const [benchmarkRuns, setBenchmarkRuns] = useState<number[]>([]);
+    const [isBenchmarking, setIsBenchmarking] = useState(false);
+    const [benchmarkError, setBenchmarkError] = useState<string | null>(null);
 
     useEffect(() => {
         void getDatabaseConnections().then((items) => {
@@ -95,6 +103,41 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
     const handleCopySql = (): void => {
         if (migrationSql) {
             void navigator.clipboard.writeText(migrationSql);
+        }
+    };
+
+    const handleOpenBenchmark = (): void => {
+        if (!selectedRecommendation) return;
+        // Pre-fill with a simple SELECT on the current table, stripping the "(Current)" label suffix
+        const tableName = selectedRecommendation.currentTable.label.replace(/\s*\(.*\)$/, "").trim();
+        setBenchmarkSql(`SELECT * FROM ${tableName} LIMIT 1000;`);
+        setBenchmarkRuns([]);
+        setBenchmarkError(null);
+        setIsBenchmarkModalOpen(true);
+    };
+
+    const handleRunBenchmark = async (): Promise<void> => {
+        if (!selectedConnectionId || !benchmarkSql.trim()) return;
+
+        setIsBenchmarking(true);
+        setBenchmarkRuns([]);
+        setBenchmarkError(null);
+
+        try {
+            const times: number[] = [];
+            for (let i = 0; i < 3; i++) {
+                const result = await executeQuery({ connectionId: selectedConnectionId, sql: benchmarkSql });
+                if (result.error) {
+                    setBenchmarkError(result.error);
+                    return;
+                }
+                times.push(result.executionTimeMs);
+                setBenchmarkRuns([...times]);
+            }
+        } catch (err) {
+            setBenchmarkError(err instanceof Error ? err.message : "An unexpected error occurred.");
+        } finally {
+            setIsBenchmarking(false);
         }
     };
 
@@ -181,6 +224,7 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                     <RefactoringPanel
                         detail={refactoringDetail}
                         onGenerateMigration={() => void handleGenerateMigration()}
+                        onBenchmark={handleOpenBenchmark}
                     />
                 </div>
             )}
@@ -230,6 +274,99 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                         <Text code>{migrationSql}</Text>
                     </pre>
                 )}
+            </Modal>
+            <Modal
+                title={
+                    <span>
+                        <ThunderboltOutlined style={{ marginRight: 8 }} />
+                        Benchmark Query
+                    </span>
+                }
+                open={isBenchmarkModalOpen}
+                onCancel={() => setIsBenchmarkModalOpen(false)}
+                width={680}
+                footer={[
+                    <Button
+                        key="run"
+                        type="primary"
+                        icon={<ThunderboltOutlined />}
+                        loading={isBenchmarking}
+                        disabled={!benchmarkSql.trim()}
+                        onClick={() => void handleRunBenchmark()}
+                    >
+                        Run Benchmark
+                    </Button>,
+                    <Button key="close" onClick={() => setIsBenchmarkModalOpen(false)}>
+                        Close
+                    </Button>,
+                ]}
+            >
+                <p style={{ marginBottom: 8, fontSize: 13 }}>
+                    Enter a query that exercises the affected table. It will be run <strong>3 times</strong> and the results compared against the AI&#39;s estimated improvement.
+                </p>
+                <Input.TextArea
+                    value={benchmarkSql}
+                    onChange={(e) => setBenchmarkSql(e.target.value)}
+                    rows={4}
+                    style={{ fontFamily: "monospace", fontSize: 13, marginBottom: 16 }}
+                    placeholder="SELECT * FROM table_name WHERE ..."
+                />
+
+                {benchmarkError && (
+                    <Alert type="error" message={benchmarkError} style={{ marginBottom: 16 }} />
+                )}
+
+                {isBenchmarking && benchmarkRuns.length === 0 && (
+                    <div style={{ display: "flex", justifyContent: "center", padding: 24 }}>
+                        <Spin tip="Running benchmark..." />
+                    </div>
+                )}
+
+                {benchmarkRuns.length > 0 && (() => {
+                    const avg = Math.round(benchmarkRuns.reduce((a, b) => a + b, 0) / benchmarkRuns.length);
+                    const tableData = [
+                        ...benchmarkRuns.map((ms, i) => ({ key: i, run: `Run ${i + 1}`, timeMs: ms })),
+                        { key: "avg", run: "Average", timeMs: avg },
+                    ];
+                    const columns: TableProps<typeof tableData[number]>["columns"] = [
+                        { title: "Run", dataIndex: "run", key: "run", width: 100 },
+                        {
+                            title: "Execution Time",
+                            dataIndex: "timeMs",
+                            key: "timeMs",
+                            render: (ms: number, record) => (
+                                <Text strong={record.key === "avg"}>{ms} ms</Text>
+                            ),
+                        },
+                    ];
+
+                    return (
+                        <>
+                            <Table
+                                columns={columns}
+                                dataSource={tableData}
+                                pagination={false}
+                                size="small"
+                                style={{ marginBottom: 16 }}
+                            />
+                            {selectedRecommendation && selectedRecommendation.metrics.length > 0 && (
+                                <Alert
+                                    type="info"
+                                    message="AI Estimated Improvement"
+                                    description={
+                                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                                            {selectedRecommendation.metrics.map((m) => (
+                                                <li key={m.label}>
+                                                    {m.label}: <strong>{m.before}</strong> → <strong>{m.after}</strong>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    }
+                                />
+                            )}
+                        </>
+                    );
+                })()}
             </Modal>
         </>
     );

@@ -4,7 +4,7 @@ import { tokenService } from "./tokenService";
 export interface ISchemaColumnDto {
     name: string;
     type: string;
-    highlight?: "warning" | "new" | null;
+    highlight?: "warning" | "new";
 }
 
 export interface ISchemaTableDefDto {

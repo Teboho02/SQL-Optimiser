@@ -36,4 +36,14 @@ test.describe("Playground", () => {
         await page.goto("/dashboard/playground");
         await expect(page.getByText("Select a connection to view schema")).toBeVisible();
     });
+
+    test("displays History panel", async ({ page }) => {
+        await page.goto("/dashboard/playground");
+        await expect(page.getByText("History")).toBeVisible();
+    });
+
+    test("History panel shows placeholder when no connection is selected", async ({ page }) => {
+        await page.goto("/dashboard/playground");
+        await expect(page.getByText("Select a connection")).toBeVisible();
+    });
 });

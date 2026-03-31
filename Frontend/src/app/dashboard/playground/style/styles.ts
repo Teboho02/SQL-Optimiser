@@ -214,6 +214,67 @@ export const useStyles = createStyles(({ token }) => ({
         flex: 1;
     `,
 
+    // history panel
+    historyBody: css`
+        flex: 1;
+        overflow-y: auto;
+        padding: 4px 0;
+    `,
+
+    historyEntry: css`
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 14px;
+        cursor: pointer;
+        border-bottom: 1px solid ${token.colorBorderSecondary};
+
+        &:last-child {
+            border-bottom: none;
+        }
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+    `,
+
+    historyQueryText: css`
+        flex: 1;
+        font-size: 12px;
+        font-family: var(--font-geist-mono), monospace;
+        color: ${token.colorTextBase};
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    `,
+
+    historyMeta: css`
+        font-size: 11px;
+        color: ${token.colorTextQuaternary};
+        margin-top: 3px;
+        white-space: nowrap;
+    `,
+
+    historyErrorDot: css`
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: ${token.colorError};
+        margin-right: 5px;
+        flex-shrink: 0;
+        margin-top: 4px;
+    `,
+
+    panelCentered: css`
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        padding: 32px 16px;
+    `,
+
     // execution info panel
     idleState: css`
         display: flex;

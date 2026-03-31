@@ -5,9 +5,16 @@ import { Select, Alert } from "antd";
 import SchemaPanel from "./SchemaPanel/SchemaPanel";
 import EditorPanel from "./EditorPanel/EditorPanel";
 import ExecutionInfoPanel from "./ExecutionInfoPanel/ExecutionInfoPanel";
+import HistoryPanel from "./HistoryPanel/HistoryPanel";
 import { useStyles } from "./style/styles";
 import { executeQuery, getSchema, ISchemaTable } from "@/services/queryService";
 import { getDatabaseConnections, IDatabaseConnectionDto } from "@/services/databaseConnectionService";
+import {
+    getQueryHistory,
+    addQueryHistory,
+    deleteQueryHistory,
+    IQueryHistoryDto,
+} from "@/services/queryHistoryService";
 
 interface IQueryResult {
     columns: string[];
@@ -30,6 +37,16 @@ const IDLE_EXECUTION_INFO: IExecutionInfo = {
 
 const DEFAULT_SQL = "SELECT * FROM ";
 
+/** Converts milliseconds to a .NET TimeSpan string (HH:MM:SS.fffffff). */
+function msToTimeSpan(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600).toString().padStart(2, "0");
+    const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, "0");
+    const s = (totalSeconds % 60).toString().padStart(2, "0");
+    const frac = Math.round((ms % 1000) * 10000).toString().padStart(7, "0");
+    return `${h}:${m}:${s}.${frac}`;
+}
+
 /** SQL Playground — write and execute queries directly against a restored local database. */
 export default function PlaygroundPage(): React.JSX.Element {
     const { styles } = useStyles();
@@ -45,6 +62,9 @@ export default function PlaygroundPage(): React.JSX.Element {
     const [executionInfo, setExecutionInfo] = useState<IExecutionInfo>(IDLE_EXECUTION_INFO);
     const [queryError, setQueryError] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState<boolean>(false);
+
+    const [history, setHistory] = useState<IQueryHistoryDto[]>([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
     // Load restored connections on mount
     useEffect(() => {
@@ -72,13 +92,28 @@ export default function PlaygroundPage(): React.JSX.Element {
         }
     }, []);
 
+    // Reload history when connection changes
+    const loadHistory = useCallback(async (connectionId: string): Promise<void> => {
+        setIsLoadingHistory(true);
+        try {
+            const entries = await getQueryHistory(connectionId);
+            setHistory(entries);
+        } catch {
+            setHistory([]);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    }, []);
+
     useEffect(() => {
         if (selectedConnectionId) {
             void loadSchema(selectedConnectionId);
+            void loadHistory(selectedConnectionId);
         } else {
             setSchemaTables([]);
+            setHistory([]);
         }
-    }, [selectedConnectionId, loadSchema]);
+    }, [selectedConnectionId, loadSchema, loadHistory]);
 
     const handleRun = async (): Promise<void> => {
         if (!sqlText.trim() || !selectedConnectionId) return;
@@ -95,6 +130,13 @@ export default function PlaygroundPage(): React.JSX.Element {
         if (result.error) {
             setQueryError(result.error);
             setExecutionInfo({ status: "error", executionTimeMs: null, queryPlan: null });
+
+            void addQueryHistory({
+                databaseConnectionId: selectedConnectionId,
+                queryText: sqlText,
+                errorMessage: result.error,
+                executionTime: "00:00:00.0000000",
+            }).then(() => void loadHistory(selectedConnectionId));
         } else {
             setQueryResult({
                 columns: result.columns,
@@ -107,6 +149,13 @@ export default function PlaygroundPage(): React.JSX.Element {
                 executionTimeMs: result.executionTimeMs,
                 queryPlan: null,
             });
+
+            void addQueryHistory({
+                databaseConnectionId: selectedConnectionId,
+                queryText: sqlText,
+                resultSummary: `${result.rowsAffected} rows`,
+                executionTime: msToTimeSpan(result.executionTimeMs),
+            }).then(() => void loadHistory(selectedConnectionId));
         }
     };
 
@@ -116,6 +165,17 @@ export default function PlaygroundPage(): React.JSX.Element {
 
     const handleAiAnalyse = (): void => {
         // todo: call backend AI analysis API
+    };
+
+    const handleHistorySelect = (query: string): void => {
+        setSqlText(query);
+    };
+
+    const handleHistoryDelete = async (entryId: string): Promise<void> => {
+        await deleteQueryHistory(entryId);
+        if (selectedConnectionId) {
+            void loadHistory(selectedConnectionId);
+        }
     };
 
     const connectionOptions = connections.map((c) => ({
@@ -162,6 +222,15 @@ export default function PlaygroundPage(): React.JSX.Element {
                     queryResult={queryResult}
                 />
                 <ExecutionInfoPanel executionInfo={executionInfo} />
+            </div>
+            <div style={{ marginTop: 16, height: 320 }}>
+                <HistoryPanel
+                    history={history}
+                    isLoading={isLoadingHistory}
+                    hasConnection={!!selectedConnectionId}
+                    onSelect={handleHistorySelect}
+                    onDelete={(id) => void handleHistoryDelete(id)}
+                />
             </div>
         </>
     );

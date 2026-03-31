@@ -16,19 +16,18 @@ test.describe("Schema Advisor", () => {
         await expect(page.getByRole("button", { name: "Scan Schema" })).toBeVisible();
     });
 
-    test("displays at least one recommendation card", async ({ page }) => {
+    test("displays connection selector", async ({ page }) => {
         await page.goto("/dashboard/schema-advisor");
-        await expect(page.getByText("Active Recommendations")).toBeVisible();
-        await expect(page.getByText("Split Table: events")).toBeVisible();
+        await expect(page.getByPlaceholder("Select a connection...")).toBeVisible();
     });
 
-    test("displays the refactoring detail panel", async ({ page }) => {
+    test("Scan Schema button is disabled when no connection is selected", async ({ page }) => {
         await page.goto("/dashboard/schema-advisor");
-        await expect(page.getByText("Refactoring: events table")).toBeVisible();
+        await expect(page.getByRole("button", { name: "Scan Schema" })).toBeDisabled();
     });
 
-    test("displays Generate Migration button", async ({ page }) => {
+    test("shows empty state prompt before scanning", async ({ page }) => {
         await page.goto("/dashboard/schema-advisor");
-        await expect(page.getByRole("button", { name: "Generate Migration" })).toBeVisible();
+        await expect(page.getByText("Select a connection and click Scan Schema to get AI-powered recommendations.")).toBeVisible();
     });
 });

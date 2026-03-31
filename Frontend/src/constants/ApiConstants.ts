@@ -18,4 +18,8 @@ export const API_CONSTANTS = {
     GENERATE_MIGRATION: `${API_BASE_URL}/api/services/app/schemaAdvisor/generateMigration`,
     GET_BENCHMARK_PLAN: `${API_BASE_URL}/api/services/app/schemaAdvisor/getBenchmarkPlan`,
     BENCHMARK_RECOMMENDATION: `${API_BASE_URL}/api/services/app/schemaAdvisor/benchmarkRecommendation`,
+    GET_ALL_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/getAllQueryHistory`,
+    GET_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/getQueryHistoryByConnectionId`,
+    ADD_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/addQueryHistoryEntry`,
+    DELETE_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/deleteQueryHistoryEntry`,
 };

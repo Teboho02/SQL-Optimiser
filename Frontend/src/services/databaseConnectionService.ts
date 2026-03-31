@@ -103,6 +103,36 @@ export async function updateConnectionSettings(request: IUpdateConnectionSetting
     }
 }
 
+/** Manually triggers a fresh database dump for an existing connection. */
+export async function triggerDump(connectionId: string): Promise<void> {
+    const response = await fetch(`${API_CONSTANTS.TRIGGER_DUMP}?connectionId=${connectionId}`, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${tokenService.getToken()}`,
+        },
+    });
+
+    if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        throw new Error(json.error?.message ?? "Failed to trigger dump.");
+    }
+}
+
+/** Manually triggers a restore of the latest dump into the local server database. */
+export async function triggerRestore(connectionId: string): Promise<void> {
+    const response = await fetch(`${API_CONSTANTS.TRIGGER_RESTORE}?connectionId=${connectionId}`, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${tokenService.getToken()}`,
+        },
+    });
+
+    if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        throw new Error(json.error?.message ?? "Failed to trigger restore.");
+    }
+}
+
 /** Calls the backend test-connection endpoint and returns the result. */
 export async function testConnection(request: ITestConnectionRequest): Promise<ITestConnectionResponse> {
     const response = await fetch(API_CONSTANTS.TEST_CONNECTION, {

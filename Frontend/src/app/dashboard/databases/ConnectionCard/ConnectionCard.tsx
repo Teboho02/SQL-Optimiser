@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Button } from "antd";
-import { DatabaseOutlined, EditOutlined } from "@ant-design/icons";
+import { Button, Tooltip } from "antd";
+import { DatabaseOutlined, EditOutlined, CloudDownloadOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useStyles } from "../style/styles";
 
 /** Connection status values for a database card. */
@@ -28,16 +28,28 @@ export interface IDatabase {
     restoreStatus: string;
     /** Whether a local copy of the database is ready to query. */
     isLocalReady: boolean;
+    /** Raw dump status enum value (0=None,1=Pending,2=InProgress,3=Completed,4=Failed). */
+    dumpStatus: number;
+    /** Raw restore status enum value (0=None,1=Pending,2=InProgress,3=Completed,4=Failed). */
+    restoreStatusRaw: number;
 }
 
 interface IConnectionCardProps {
     database: IDatabase;
     onEdit: () => void;
+    onDump: () => void;
+    onRebuild: () => void;
+    isDumping: boolean;
+    isRebuilding: boolean;
 }
 
 /** Card displaying a single database connection's metadata and status. */
-const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit }) => {
+const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDump, onRebuild, isDumping, isRebuilding }) => {
     const { styles } = useStyles();
+
+    const dumpBusy = isDumping || database.dumpStatus === 1 || database.dumpStatus === 2;
+    const rebuildBusy = isRebuilding || database.restoreStatusRaw === 1 || database.restoreStatusRaw === 2;
+    const canRebuild = database.dumpStatus === 3;
 
     return (
         <div className={styles.card}>
@@ -67,6 +79,30 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit }) =>
                 <span className={database.isLocalReady ? styles.badgeConnected : styles.badgeDisconnected}>
                     {database.restoreStatus}
                 </span>
+            </div>
+            <div className={styles.cardActions}>
+                <Tooltip title="Dump — capture a fresh snapshot from the live database">
+                    <Button
+                        size="small"
+                        icon={<CloudDownloadOutlined />}
+                        loading={dumpBusy}
+                        disabled={dumpBusy}
+                        onClick={onDump}
+                    >
+                        Dump
+                    </Button>
+                </Tooltip>
+                <Tooltip title={canRebuild ? "Rebuild — restore the latest dump to the local server" : "A completed dump is required before rebuilding"}>
+                    <Button
+                        size="small"
+                        icon={<ReloadOutlined />}
+                        loading={rebuildBusy}
+                        disabled={rebuildBusy || !canRebuild}
+                        onClick={onRebuild}
+                    >
+                        Rebuild
+                    </Button>
+                </Tooltip>
                 <Button type="text" size="small" icon={<EditOutlined />} onClick={onEdit}>Edit</Button>
             </div>
         </div>

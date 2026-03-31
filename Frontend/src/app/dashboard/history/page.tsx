@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { Spin } from "antd";
 import HistoryHeader from "./HistoryHeader/HistoryHeader";
 import HistoryTable from "./HistoryTable/HistoryTable";
 import HistoryPagination from "./HistoryPagination/HistoryPagination";
+import { getAllQueryHistory, IQueryHistoryDto } from "@/services/queryHistoryService";
+import { getDatabaseConnections, IDatabaseConnectionDto } from "@/services/databaseConnectionService";
 
 /** Status of a historical analysis entry. */
 type HistoryStatus = "success" | "warning" | "critical";
@@ -18,25 +21,61 @@ interface IHistoryEntry {
 }
 
 const PAGE_SIZE = 6;
-const TOTAL_ENTRIES = 1284;
 
-// mock data used until the backend history API is wired up
-const MOCK_ENTRIES: IHistoryEntry[] = [
-    { id: "ANL-892", queryPreview: "SELECT u.id, u.name, COUNT(o.id)...", database: "prod-main", improvement: "+99%", status: "success", date: "2023-10-24 14:32" },
-    { id: "ANL-891", queryPreview: "UPDATE inventory SET stock = ...", database: "prod-main", improvement: "+12%", status: "success", date: "2023-10-24 12:15" },
-    { id: "ANL-890", queryPreview: "SELECT COUNT(*) FROM events...", database: "prod-analytics", improvement: null, status: "warning", date: "2023-10-23 09:41" },
-    { id: "ANL-889", queryPreview: "DELETE FROM sessions WHERE...", database: "staging-1", improvement: "+85%", status: "success", date: "2023-10-22 16:20" },
-    { id: "ANL-888", queryPreview: "SELECT * FROM audit_logs WHERE...", database: "prod-main", improvement: "+45%", status: "success", date: "2023-10-21 11:05" },
-    { id: "ANL-887", queryPreview: "INSERT INTO metrics (time, val)...", database: "prod-analytics", improvement: "Error", status: "critical", date: "2023-10-20 08:30" },
-];
+function toHistoryEntry(dto: IQueryHistoryDto, connectionMap: Map<string, string>): IHistoryEntry {
+    const connectionName = connectionMap.get(dto.databaseConnectionId) ?? dto.databaseConnectionId.slice(0, 8);
+    const status: HistoryStatus = dto.errorMessage ? "critical" : dto.suggestedQuery ? "warning" : "success";
+    const improvement = dto.suggestedQuery ? "Has suggestion" : null;
+    const date = new Date(dto.creationTime).toLocaleString([], {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 
-/** Analysis History page — paginated log of all query analyses run across the team. */
+    return {
+        id: dto.id.slice(0, 8).toUpperCase(),
+        queryPreview: dto.queryText,
+        database: connectionName,
+        improvement,
+        status,
+        date,
+    };
+}
+
+/** Analysis History page — paginated log of all query executions run across the team. */
 export default function HistoryPage(): React.JSX.Element {
+    const [entries, setEntries] = useState<IHistoryEntry[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState<number>(1);
 
-    const totalPages = Math.ceil(TOTAL_ENTRIES / PAGE_SIZE);
-    const rangeStart = (currentPage - 1) * PAGE_SIZE + 1;
-    const rangeEnd = Math.min(currentPage * PAGE_SIZE, TOTAL_ENTRIES);
+    useEffect(() => {
+        void (async () => {
+            setIsLoading(true);
+            try {
+                const [historyDtos, connections] = await Promise.all([
+                    getAllQueryHistory(),
+                    getDatabaseConnections(),
+                ]);
+
+                const connectionMap = new Map<string, string>(
+                    connections.map((c: IDatabaseConnectionDto) => [c.id, c.name])
+                );
+
+                setEntries(historyDtos.map((dto) => toHistoryEntry(dto, connectionMap)));
+            } finally {
+                setIsLoading(false);
+            }
+        })();
+    }, []);
+
+    const totalEntries = entries.length;
+    const totalPages = Math.max(1, Math.ceil(totalEntries / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const rangeStart = totalEntries === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+    const rangeEnd = Math.min(safePage * PAGE_SIZE, totalEntries);
+    const pageEntries = entries.slice(rangeStart - 1, rangeEnd);
 
     const handleFilter = (): void => {
         // todo: open filter drawer/modal
@@ -46,15 +85,23 @@ export default function HistoryPage(): React.JSX.Element {
         // todo: trigger CSV export via backend API
     };
 
+    if (isLoading) {
+        return (
+            <div style={{ display: "flex", justifyContent: "center", paddingTop: 80 }}>
+                <Spin size="large" />
+            </div>
+        );
+    }
+
     return (
         <>
             <HistoryHeader onFilter={handleFilter} onExportCsv={handleExportCsv} />
-            <HistoryTable entries={MOCK_ENTRIES} />
+            <HistoryTable entries={pageEntries} />
             <HistoryPagination
                 rangeStart={rangeStart}
                 rangeEnd={rangeEnd}
-                totalEntries={TOTAL_ENTRIES}
-                currentPage={currentPage}
+                totalEntries={totalEntries}
+                currentPage={safePage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
             />

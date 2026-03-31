@@ -28,6 +28,16 @@ function authHeaders(): HeadersInit {
     };
 }
 
+/** Fetches all query history across every connection, ordered newest-first. */
+export async function getAllQueryHistory(): Promise<IQueryHistoryDto[]> {
+    const response = await fetch(API_CONSTANTS.GET_ALL_QUERY_HISTORY, {
+        method: "GET",
+        headers: authHeaders(),
+    });
+    const json = await response.json();
+    return (json.result ?? []) as IQueryHistoryDto[];
+}
+
 /** Fetches query history for a given connection, ordered newest-first. */
 export async function getQueryHistory(connectionId: string): Promise<IQueryHistoryDto[]> {
     const url = `${API_CONSTANTS.GET_QUERY_HISTORY}?connectionId=${encodeURIComponent(connectionId)}`;

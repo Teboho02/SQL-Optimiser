@@ -1,148 +1,110 @@
 "use client";
 
-import React, { useState } from "react";
-import { Button } from "antd";
-import { ScanOutlined } from "@ant-design/icons";
+import React, { useState, useEffect } from "react";
+import { Button, Select, Alert, Modal, Spin, Empty, Typography } from "antd";
+import { ScanOutlined, CopyOutlined } from "@ant-design/icons";
 import RecommendationList from "./RecommendationList/RecommendationList";
 import RefactoringPanel from "./RefactoringPanel/RefactoringPanel";
 import { useStyles } from "./style/styles";
+import { getDatabaseConnections, IDatabaseConnectionDto } from "@/services/databaseConnectionService";
+import {
+    scanSchema,
+    generateMigration,
+    IRecommendationDto,
+} from "@/services/schemaAdvisorService";
 
-type ImpactLevel = "high" | "medium" | "low";
-
-interface IRecommendation {
-    id: string;
-    title: string;
-    impact: ImpactLevel;
-    description: string;
-    estimatedDowntime: string;
-}
-
-interface ISchemaColumn {
-    name: string;
-    type: string;
-    highlight?: "warning" | "new";
-}
-
-interface ISchemaTableDef {
-    label: string;
-    variant: "current" | "new";
-    columns: ISchemaColumn[];
-}
-
-interface IMetric {
-    label: string;
-    before: string;
-    after: string;
-}
-
-interface IRefactoringDetail {
-    title: string;
-    currentTable: ISchemaTableDef;
-    newTables: ISchemaTableDef[];
-    metrics: IMetric[];
-}
-
-const RECOMMENDATIONS: IRecommendation[] = [
-    {
-        id: "split-events",
-        title: "Split Table: events",
-        impact: "high",
-        description: "Table `events` has 450M rows and wide JSONB columns. Splitting payload data to a separate table will improve scan times by ~80%.",
-        estimatedDowntime: "Est. downtime: 0s (Online DDL)",
-    },
-    {
-        id: "denormalize-user_stats",
-        title: "Denormalize: user_stats",
-        impact: "medium",
-        description: "Frequent aggregations on `orders` and `logins`. Create a materialized view or trigger-updated stats table.",
-        estimatedDowntime: "Est. downtime: 0s (Online DDL)",
-    },
-];
-
-// mock refactoring details keyed by recommendation id
-const REFACTORING_DETAILS: Record<string, IRefactoringDetail> = {
-    "split-events": {
-        title: "Refactoring: events table",
-        currentTable: {
-            label: "events (Current)",
-            variant: "current",
-            columns: [
-                { name: "id", type: "uuid" },
-                { name: "user_id", type: "uuid" },
-                { name: "type", type: "varchar" },
-                { name: "payload", type: "jsonb (large)", highlight: "warning" },
-                { name: "created_at", type: "timestamp" },
-            ],
-        },
-        newTables: [
-            {
-                label: "events (New)",
-                variant: "new",
-                columns: [
-                    { name: "id", type: "uuid" },
-                    { name: "user_id", type: "uuid" },
-                    { name: "type", type: "varchar" },
-                    { name: "created_at", type: "timestamp" },
-                ],
-            },
-            {
-                label: "event_payloads",
-                variant: "new",
-                columns: [
-                    { name: "event_id", type: "uuid (FK)", highlight: "new" },
-                    { name: "payload", type: "jsonb", highlight: "new" },
-                ],
-            },
-        ],
-        metrics: [
-            { label: "Sequential Scan Time", before: "12s", after: "1.5s" },
-            { label: "Storage Size (Main Table)", before: "140GB", after: "12GB" },
-        ],
-    },
-    "denormalize-user_stats": {
-        title: "Refactoring: user_stats",
-        currentTable: {
-            label: "orders (Current)",
-            variant: "current",
-            columns: [
-                { name: "id", type: "uuid" },
-                { name: "user_id", type: "uuid" },
-                { name: "total", type: "numeric" },
-                { name: "status", type: "varchar" },
-                { name: "created_at", type: "timestamp" },
-            ],
-        },
-        newTables: [
-            {
-                label: "user_stats (New)",
-                variant: "new",
-                columns: [
-                    { name: "user_id", type: "uuid (FK)", highlight: "new" },
-                    { name: "order_count", type: "integer", highlight: "new" },
-                    { name: "total_spend", type: "numeric", highlight: "new" },
-                    { name: "updated_at", type: "timestamp", highlight: "new" },
-                ],
-            },
-        ],
-        metrics: [
-            { label: "Aggregation Query Time", before: "8.2s", after: "0.4s" },
-            { label: "Queries per Second", before: "12", after: "340" },
-        ],
-    },
-};
+const { Text } = Typography;
 
 /** Schema Advisor page — AI-driven recommendations for normalisation and structural improvements. */
 export default function SchemaAdvisorPage(): React.JSX.Element {
     const { styles } = useStyles();
-    const [selectedId, setSelectedId] = useState<string>(RECOMMENDATIONS[0].id);
 
-    const handleScanSchema = (): void => {
-        // todo: trigger backend schema scan
+    const [connections, setConnections] = useState<IDatabaseConnectionDto[]>([]);
+    const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+
+    const [recommendations, setRecommendations] = useState<IRecommendationDto[]>([]);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [scanError, setScanError] = useState<string | null>(null);
+    const [isScanning, setIsScanning] = useState(false);
+
+    const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
+    const [migrationSql, setMigrationSql] = useState<string | null>(null);
+    const [migrationError, setMigrationError] = useState<string | null>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    useEffect(() => {
+        void getDatabaseConnections().then((items) => {
+            const restored = items.filter((c) => c.restoreStatus === 3);
+            setConnections(restored);
+            if (restored.length === 1) {
+                setSelectedConnectionId(restored[0].id);
+            }
+        });
+    }, []);
+
+    const handleScanSchema = async (): Promise<void> => {
+        if (!selectedConnectionId) return;
+
+        setIsScanning(true);
+        setScanError(null);
+        setRecommendations([]);
+        setSelectedId(null);
+
+        const output = await scanSchema(selectedConnectionId);
+
+        setIsScanning(false);
+
+        if (output.error) {
+            setScanError(output.error);
+            return;
+        }
+
+        setRecommendations(output.recommendations);
+        if (output.recommendations.length > 0) {
+            setSelectedId(output.recommendations[0].id);
+        }
     };
 
-    const handleGenerateMigration = (): void => {
-        // todo: call backend migration generation API for selectedId
+    const handleGenerateMigration = async (): Promise<void> => {
+        if (!selectedConnectionId || !selectedRecommendation) return;
+
+        setIsMigrationModalOpen(true);
+        setIsGenerating(true);
+        setMigrationSql(null);
+        setMigrationError(null);
+
+        const output = await generateMigration(selectedConnectionId, selectedRecommendation);
+
+        setIsGenerating(false);
+
+        if (output.error) {
+            setMigrationError(output.error);
+        } else {
+            setMigrationSql(output.migrationSql ?? null);
+        }
     };
+
+    const handleCopySql = (): void => {
+        if (migrationSql) {
+            void navigator.clipboard.writeText(migrationSql);
+        }
+    };
+
+    const selectedRecommendation = recommendations.find((r) => r.id === selectedId) ?? null;
+
+    const connectionOptions = connections.map((c) => ({
+        value: c.id,
+        label: c.name,
+    }));
+
+    const refactoringDetail = selectedRecommendation
+        ? {
+              title: `Refactoring: ${selectedRecommendation.title}`,
+              currentTable: selectedRecommendation.currentTable,
+              newTables: selectedRecommendation.newTables,
+              metrics: selectedRecommendation.metrics,
+          }
+        : null;
 
     return (
         <>
@@ -151,21 +113,116 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                     <h1 className={styles.pageTitle}>Schema Advisor</h1>
                     <p className={styles.pageSubtitle}>AI-driven recommendations for normalisation and structural improvements.</p>
                 </div>
-                <Button icon={<ScanOutlined />} size="large" onClick={handleScanSchema}>
-                    Scan Schema
-                </Button>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <Select
+                        style={{ width: 240 }}
+                        placeholder="Select a connection..."
+                        options={connectionOptions}
+                        value={selectedConnectionId}
+                        onChange={setSelectedConnectionId}
+                        notFoundContent="No restored connections found"
+                    />
+                    <Button
+                        icon={<ScanOutlined />}
+                        size="large"
+                        type="primary"
+                        loading={isScanning}
+                        disabled={!selectedConnectionId}
+                        onClick={() => void handleScanSchema()}
+                    >
+                        Scan Schema
+                    </Button>
+                </div>
             </div>
-            <div className={styles.twoColumnLayout}>
-                <RecommendationList
-                    recommendations={RECOMMENDATIONS}
-                    selectedId={selectedId}
-                    onSelect={setSelectedId}
+
+            {scanError && (
+                <Alert
+                    type="error"
+                    message={scanError}
+                    closable
+                    onClose={() => setScanError(null)}
+                    style={{ marginBottom: 16 }}
                 />
-                <RefactoringPanel
-                    detail={REFACTORING_DETAILS[selectedId]}
-                    onGenerateMigration={handleGenerateMigration}
-                />
-            </div>
+            )}
+
+            {isScanning && (
+                <div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }}>
+                    <Spin size="large" tip="Analysing schema with AI..." />
+                </div>
+            )}
+
+            {!isScanning && recommendations.length === 0 && !scanError && (
+                <div style={{ padding: "80px 0" }}>
+                    <Empty
+                        description={
+                            selectedConnectionId
+                                ? "Select a connection and click Scan Schema to get AI-powered recommendations."
+                                : "Select a connection and click Scan Schema to get AI-powered recommendations."
+                        }
+                    />
+                </div>
+            )}
+
+            {!isScanning && recommendations.length > 0 && refactoringDetail && selectedId && (
+                <div className={styles.twoColumnLayout}>
+                    <RecommendationList
+                        recommendations={recommendations}
+                        selectedId={selectedId}
+                        onSelect={setSelectedId}
+                    />
+                    <RefactoringPanel
+                        detail={refactoringDetail}
+                        onGenerateMigration={() => void handleGenerateMigration()}
+                    />
+                </div>
+            )}
+
+            <Modal
+                title="Generated Migration Script"
+                open={isMigrationModalOpen}
+                onCancel={() => setIsMigrationModalOpen(false)}
+                width={760}
+                footer={
+                    migrationSql
+                        ? [
+                              <Button key="copy" icon={<CopyOutlined />} onClick={handleCopySql}>
+                                  Copy SQL
+                              </Button>,
+                              <Button key="close" type="primary" onClick={() => setIsMigrationModalOpen(false)}>
+                                  Close
+                              </Button>,
+                          ]
+                        : [
+                              <Button key="close" type="primary" onClick={() => setIsMigrationModalOpen(false)}>
+                                  Close
+                              </Button>,
+                          ]
+                }
+            >
+                {isGenerating && (
+                    <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+                        <Spin tip="Generating migration script..." />
+                    </div>
+                )}
+                {migrationError && <Alert type="error" message={migrationError} />}
+                {migrationSql && (
+                    <pre
+                        style={{
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            borderRadius: 8,
+                            padding: 16,
+                            fontSize: 12,
+                            lineHeight: 1.6,
+                            overflow: "auto",
+                            maxHeight: 480,
+                            whiteSpace: "pre-wrap",
+                        }}
+                    >
+                        <Text code>{migrationSql}</Text>
+                    </pre>
+                )}
+            </Modal>
         </>
     );
 }

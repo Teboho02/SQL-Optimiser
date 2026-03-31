@@ -270,4 +270,70 @@ export const useStyles = createStyles(({ token }) => ({
     metricAfter: css`
         color: #34d399;
     `,
+
+    // scan history section
+    historySection: css`
+        margin-top: 36px;
+        background: ${token.colorBgContainer};
+        border: 1px solid ${token.colorBorder};
+        border-radius: 12px;
+        padding: 20px 24px;
+    `,
+
+    historyHeader: css`
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    `,
+
+    historyTitle: css`
+        font-size: 15px;
+        font-weight: 600;
+        color: ${token.colorTextBase};
+        margin: 0;
+    `,
+
+    historyItem: css`
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1px solid ${token.colorBorder};
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: background 0.15s;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    `,
+
+    historyItemActive: css`
+        border-color: ${token.colorPrimary};
+        background: rgba(124, 58, 237, 0.06) !important;
+    `,
+
+    historyMeta: css`
+        flex: 1;
+        min-width: 0;
+    `,
+
+    historyTimestamp: css`
+        font-size: 13px;
+        font-weight: 500;
+        color: ${token.colorTextBase};
+        margin: 0 0 2px;
+    `,
+
+    historyCount: css`
+        font-size: 12px;
+        color: ${token.colorTextSecondary};
+        margin: 0;
+    `,
 }));

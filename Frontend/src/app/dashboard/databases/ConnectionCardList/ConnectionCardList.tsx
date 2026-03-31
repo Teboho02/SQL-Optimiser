@@ -9,10 +9,14 @@ interface IConnectionCardListProps {
     databases: IDatabase[];
     isLoading: boolean;
     onEdit: (id: string) => void;
+    onDump: (id: string) => void;
+    onRebuild: (id: string) => void;
+    dumpingIds: Set<string>;
+    rebuildingIds: Set<string>;
 }
 
 /** Grid of all registered database connection cards. */
-const ConnectionCardList: React.FC<IConnectionCardListProps> = ({ databases, isLoading, onEdit }) => {
+const ConnectionCardList: React.FC<IConnectionCardListProps> = ({ databases, isLoading, onEdit, onDump, onRebuild, dumpingIds, rebuildingIds }) => {
     const { styles } = useStyles();
 
     if (isLoading) {
@@ -32,7 +36,15 @@ const ConnectionCardList: React.FC<IConnectionCardListProps> = ({ databases, isL
     return (
         <div className={styles.cardsGrid}>
             {databases.map((database) => (
-                <ConnectionCard key={database.id} database={database} onEdit={() => onEdit(database.id)} />
+                <ConnectionCard
+                    key={database.id}
+                    database={database}
+                    onEdit={() => onEdit(database.id)}
+                    onDump={() => onDump(database.id)}
+                    onRebuild={() => onRebuild(database.id)}
+                    isDumping={dumpingIds.has(database.id)}
+                    isRebuilding={rebuildingIds.has(database.id)}
+                />
             ))}
         </div>
     );

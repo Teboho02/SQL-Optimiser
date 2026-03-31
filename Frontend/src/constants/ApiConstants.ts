@@ -10,6 +10,8 @@ export const API_CONSTANTS = {
     SAVE_CONNECTION: `${API_BASE_URL}/api/services/app/databaseConnection/saveConnection`,
     GET_ALL_CONNECTIONS: `${API_BASE_URL}/api/services/app/databaseConnection/getAll`,
     UPDATE_CONNECTION_SETTINGS: `${API_BASE_URL}/api/services/app/databaseConnection/updateSettings`,
+    TRIGGER_DUMP: `${API_BASE_URL}/api/services/app/databaseConnection/triggerDump`,
+    TRIGGER_RESTORE: `${API_BASE_URL}/api/services/app/databaseConnection/triggerRestore`,
     EXECUTE_QUERY: `${API_BASE_URL}/api/services/app/queryExecution/execute`,
     GET_SCHEMA: `${API_BASE_URL}/api/services/app/queryExecution/getSchema`,
     ANALYSE_QUERY: `${API_BASE_URL}/api/services/app/queryExecution/analyse`,

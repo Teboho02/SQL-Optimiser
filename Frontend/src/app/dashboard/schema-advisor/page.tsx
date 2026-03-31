@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Button, Select, Alert, Modal, Spin, Empty, Typography, Input, Table } from "antd";
 import type { TableProps } from "antd";
-import { ScanOutlined, CopyOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import { ScanOutlined, CopyOutlined, ThunderboltOutlined, ExperimentOutlined } from "@ant-design/icons";
 import RecommendationList from "./RecommendationList/RecommendationList";
 import RefactoringPanel from "./RefactoringPanel/RefactoringPanel";
 import { useStyles } from "./style/styles";
@@ -11,7 +11,9 @@ import { getDatabaseConnections, IDatabaseConnectionDto } from "@/services/datab
 import {
     scanSchema,
     generateMigration,
+    benchmarkRecommendation,
     IRecommendationDto,
+    IQueryPairResult,
 } from "@/services/schemaAdvisorService";
 import { executeQuery } from "@/services/queryService";
 
@@ -39,6 +41,11 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
     const [benchmarkRuns, setBenchmarkRuns] = useState<number[]>([]);
     const [isBenchmarking, setIsBenchmarking] = useState(false);
     const [benchmarkError, setBenchmarkError] = useState<string | null>(null);
+
+    const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+    const [compareResults, setCompareResults] = useState<IQueryPairResult[]>([]);
+    const [isComparing, setIsComparing] = useState(false);
+    const [compareError, setCompareError] = useState<string | null>(null);
 
     useEffect(() => {
         void getDatabaseConnections().then((items) => {
@@ -114,6 +121,28 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
         setBenchmarkRuns([]);
         setBenchmarkError(null);
         setIsBenchmarkModalOpen(true);
+    };
+
+    const handleOpenCompare = (): void => {
+        setCompareResults([]);
+        setCompareError(null);
+        setIsCompareModalOpen(true);
+        void (async () => {
+            if (!selectedConnectionId || !selectedRecommendation) return;
+            setIsComparing(true);
+            try {
+                const output = await benchmarkRecommendation(selectedConnectionId, selectedRecommendation);
+                if (output.error) {
+                    setCompareError(output.error);
+                } else {
+                    setCompareResults(output.results);
+                }
+            } catch (err) {
+                setCompareError(err instanceof Error ? err.message : "An unexpected error occurred.");
+            } finally {
+                setIsComparing(false);
+            }
+        })();
     };
 
     const handleRunBenchmark = async (): Promise<void> => {
@@ -225,6 +254,7 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                         detail={refactoringDetail}
                         onGenerateMigration={() => void handleGenerateMigration()}
                         onBenchmark={handleOpenBenchmark}
+                        onCompare={handleOpenCompare}
                     />
                 </div>
             )}
@@ -367,6 +397,92 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                         </>
                     );
                 })()}
+            </Modal>
+            <Modal
+                title={
+                    <span>
+                        <ExperimentOutlined style={{ marginRight: 8 }} />
+                        Compare Schemas — AI Query Benchmark
+                    </span>
+                }
+                open={isCompareModalOpen}
+                onCancel={() => setIsCompareModalOpen(false)}
+                width={860}
+                footer={[
+                    <Button key="close" type="primary" onClick={() => setIsCompareModalOpen(false)}>Close</Button>,
+                ]}
+            >
+                {isComparing && (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", gap: 12 }}>
+                        <Spin size="large" />
+                        <Text style={{ fontSize: 13 }}>
+                            AI is generating query suggestions and running benchmarks on both schemas…
+                        </Text>
+                    </div>
+                )}
+
+                {compareError && <Alert type="error" message={compareError} />}
+
+                {!isComparing && compareResults.map((result, idx) => (
+                    <div key={idx} style={{ marginBottom: 28 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                            <Text strong style={{ fontSize: 14 }}>
+                                {idx + 1}. {result.description}
+                            </Text>
+                            {result.error
+                                ? <Alert type="error" message={result.error} style={{ padding: "2px 8px" }} />
+                                : (
+                                    <Text
+                                        strong
+                                        style={{
+                                            color: result.improvementPercent >= 0 ? "#52c41a" : "#ff4d4f",
+                                            fontSize: 15,
+                                        }}
+                                    >
+                                        {result.improvementPercent >= 0 ? "+" : ""}{result.improvementPercent}% faster
+                                    </Text>
+                                )
+                            }
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
+                            <div>
+                                <Text type="secondary" style={{ fontSize: 11, display: "block", marginBottom: 4 }}>
+                                    ORIGINAL QUERY (current schema)
+                                </Text>
+                                <pre style={{ background: "rgba(255,60,60,0.06)", border: "1px solid rgba(255,100,100,0.2)", borderRadius: 6, padding: 10, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", maxHeight: 160, overflow: "auto" }}>
+                                    {result.originalQuery}
+                                </pre>
+                            </div>
+                            <div>
+                                <Text type="secondary" style={{ fontSize: 11, display: "block", marginBottom: 4 }}>
+                                    ADAPTED QUERY (new schema)
+                                </Text>
+                                <pre style={{ background: "rgba(60,255,100,0.06)", border: "1px solid rgba(60,200,100,0.2)", borderRadius: 6, padding: 10, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", maxHeight: 160, overflow: "auto" }}>
+                                    {result.adaptedQuery}
+                                </pre>
+                            </div>
+                        </div>
+
+                        {!result.error && (
+                            <div style={{ display: "flex", gap: 16 }}>
+                                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "8px 20px", textAlign: "center" }}>
+                                    <Text type="secondary" style={{ fontSize: 11, display: "block" }}>Original Avg</Text>
+                                    <Text strong style={{ fontSize: 18 }}>{result.originalAvgMs.toFixed(1)} ms</Text>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", fontSize: 18, color: "rgba(255,255,255,0.3)" }}>→</div>
+                                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "8px 20px", textAlign: "center" }}>
+                                    <Text type="secondary" style={{ fontSize: 11, display: "block" }}>Adapted Avg</Text>
+                                    <Text strong style={{ fontSize: 18, color: result.adaptedAvgMs < result.originalAvgMs ? "#52c41a" : "#ff4d4f" }}>
+                                        {result.adaptedAvgMs.toFixed(1)} ms
+                                    </Text>
+                                </div>
+                            </div>
+                        )}
+
+                        {idx < compareResults.length - 1 && <hr style={{ marginTop: 20, border: "none", borderTop: "1px solid rgba(255,255,255,0.06)" }} />}
+                    </div>
+                ))}
             </Modal>
         </>
     );

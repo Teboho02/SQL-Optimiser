@@ -40,6 +40,21 @@ export interface IGenerateMigrationOutput {
     error: string | null;
 }
 
+export interface IQueryPairResult {
+    description: string;
+    originalQuery: string;
+    adaptedQuery: string;
+    originalAvgMs: number;
+    adaptedAvgMs: number;
+    improvementPercent: number;
+    error: string | null;
+}
+
+export interface IBenchmarkRecommendationOutput {
+    results: IQueryPairResult[];
+    error: string | null;
+}
+
 function authHeaders(): HeadersInit {
     return {
         "Content-Type": "application/json",
@@ -63,6 +78,32 @@ export async function scanSchema(connectionId: string): Promise<IScanSchemaOutpu
     }
 
     return json.result as IScanSchemaOutput;
+}
+
+/** AI-generates query pairs, applies the schema change in a transaction, benchmarks both, then rolls back. */
+export async function benchmarkRecommendation(
+    connectionId: string,
+    recommendation: IRecommendationDto,
+    runs = 3,
+): Promise<IBenchmarkRecommendationOutput> {
+    const response = await fetch(API_CONSTANTS.BENCHMARK_RECOMMENDATION, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+            connectionId,
+            recommendationJson: JSON.stringify(recommendation),
+            runs,
+        }),
+    });
+
+    const json = await response.json();
+
+    if (!response.ok) {
+        const message = json?.error?.message ?? `Request failed with status ${response.status}`;
+        return { results: [], error: message };
+    }
+
+    return json.result as IBenchmarkRecommendationOutput;
 }
 
 /** Generates a PostgreSQL migration script for the supplied recommendation. */

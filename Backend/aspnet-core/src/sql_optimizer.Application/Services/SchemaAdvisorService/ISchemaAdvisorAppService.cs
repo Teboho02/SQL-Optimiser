@@ -16,4 +16,11 @@ public interface ISchemaAdvisorAppService : IApplicationService
     /// Generates a PostgreSQL migration script for the supplied recommendation.
     /// </summary>
     Task<GenerateMigrationOutput> GenerateMigrationAsync(GenerateMigrationInput input);
+
+    /// <summary>
+    /// AI-generates representative query pairs (original + adapted for the new schema),
+    /// applies the structural changes inside a transaction, benchmarks both variants
+    /// against real data, then rolls back — leaving the database unchanged.
+    /// </summary>
+    Task<BenchmarkRecommendationOutput> BenchmarkRecommendationAsync(BenchmarkRecommendationInput input);
 }

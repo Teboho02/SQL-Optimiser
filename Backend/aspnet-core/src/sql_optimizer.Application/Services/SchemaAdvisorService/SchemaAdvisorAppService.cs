@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -160,9 +161,183 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
         }
     }
 
+    /// <inheritdoc />
+    public async Task<BenchmarkRecommendationOutput> BenchmarkRecommendationAsync(BenchmarkRecommendationInput input)
+    {
+        var connectionString = await GetLocalConnectionStringAsync(input.ConnectionId);
+        if (connectionString is null)
+            return new BenchmarkRecommendationOutput { Error = "This connection has not been restored to the local database yet." };
+
+        var openAiKey = Environment.GetEnvironmentVariable("OPENAI_KEY");
+        if (string.IsNullOrWhiteSpace(openAiKey))
+            return new BenchmarkRecommendationOutput { Error = "OPENAI_KEY environment variable is not configured." };
+
+        // Step 1 — Ask AI to generate benchmark DDL + representative query pairs
+        var aiResult = await GenerateBenchmarkPlanAsync(input.RecommendationJson, openAiKey);
+        if (aiResult.Error != null)
+            return new BenchmarkRecommendationOutput { Error = aiResult.Error };
+
+        var runs = Math.Clamp(input.Runs, 1, 5);
+        var results = new List<QueryPairResult>();
+
+        await using var conn = new NpgsqlConnection(connectionString);
+        await conn.OpenAsync();
+
+        // Step 2 — Baseline: run all original queries on the unmodified schema
+        foreach (var pair in aiResult.QueryPairs)
+        {
+            var result = new QueryPairResult
+            {
+                Description = pair.Description,
+                OriginalQuery = pair.OriginalQuery,
+                AdaptedQuery = pair.AdaptedQuery,
+            };
+
+            try
+            {
+                var times = new List<long>(runs);
+                for (var i = 0; i < runs; i++)
+                {
+                    var sw = Stopwatch.StartNew();
+                    await using var cmd = new NpgsqlCommand(pair.OriginalQuery, conn) { CommandTimeout = 30 };
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync()) { }
+                    sw.Stop();
+                    times.Add(sw.ElapsedMilliseconds);
+                }
+                result.OriginalAvgMs = times.Average();
+            }
+            catch (Exception ex)
+            {
+                result.Error = $"Original query failed: {ex.Message}";
+            }
+
+            results.Add(result);
+        }
+
+        // Step 3 — Apply benchmark DDL inside a transaction, run adapted queries, then ROLLBACK
+        await using var tx = await conn.BeginTransactionAsync();
+        try
+        {
+            await using var ddlCmd = new NpgsqlCommand(aiResult.BenchmarkDdl, conn, tx) { CommandTimeout = 60 };
+            await ddlCmd.ExecuteNonQueryAsync();
+
+            foreach (var result in results.Where(r => r.Error is null))
+            {
+                try
+                {
+                    var times = new List<long>(runs);
+                    for (var i = 0; i < runs; i++)
+                    {
+                        var sw = Stopwatch.StartNew();
+                        await using var cmd = new NpgsqlCommand(result.AdaptedQuery, conn, tx) { CommandTimeout = 30 };
+                        await using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync()) { }
+                        sw.Stop();
+                        times.Add(sw.ElapsedMilliseconds);
+                    }
+                    result.AdaptedAvgMs = times.Average();
+                    result.ImprovementPercent = result.OriginalAvgMs > 0
+                        ? Math.Round((1.0 - result.AdaptedAvgMs / result.OriginalAvgMs) * 100, 1)
+                        : 0;
+                }
+                catch (Exception ex)
+                {
+                    result.Error = $"Adapted query failed: {ex.Message}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[SchemaAdvisor] Benchmark DDL failed: {ex.Message}", ex);
+            foreach (var r in results.Where(r => r.Error is null))
+                r.Error = $"Schema migration for benchmark failed: {ex.Message}";
+        }
+        finally
+        {
+            // Always rollback — the database must be left unchanged
+            await tx.RollbackAsync();
+            Logger.Info($"[SchemaAdvisor] Benchmark transaction rolled back for connection {input.ConnectionId}.");
+        }
+
+        return new BenchmarkRecommendationOutput { Results = results };
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    private record BenchmarkPlan(string BenchmarkDdl, List<QueryPair> QueryPairs, string Error = null);
+    private record QueryPair(string Description, string OriginalQuery, string AdaptedQuery);
+
+    private async Task<BenchmarkPlan> GenerateBenchmarkPlanAsync(string recommendationJson, string openAiKey)
+    {
+        var systemPrompt = """
+            You are an expert PostgreSQL DBA and query optimiser.
+
+            Given a schema recommendation, produce TWO things and return ONLY valid JSON (no markdown, no code fences):
+
+            1. "benchmarkDdl": SQL that sets up the proposed schema INSIDE an already-open transaction.
+               Rules for the DDL:
+               - Use regular CREATE INDEX (NOT CONCURRENTLY) so it can run inside a transaction.
+               - Do NOT include BEGIN, COMMIT, or ROLLBACK — the transaction is managed externally.
+               - Create all new tables from the recommendation.
+               - Populate new tables with data migrated from existing tables using INSERT INTO ... SELECT.
+               - Apply any ALTER TABLE changes (e.g. drop redundant columns) AFTER data migration.
+               - The goal is a realistic schema state so JOIN queries return actual rows.
+
+            2. "queryPairs": 2–3 representative queries that demonstrate the performance difference.
+               Each pair MUST include at least one JOIN query.
+               Rules:
+               - "originalQuery": a SELECT that works on the CURRENT schema (before DDL).
+               - "adaptedQuery": the equivalent SELECT adapted to the NEW schema (after DDL), using JOINs where the schema was split.
+               - Both queries must be safe read-only SELECTs with a LIMIT 500 clause.
+               - "description": one sentence explaining what the query tests.
+
+            Return exactly:
+            {
+              "benchmarkDdl": "<sql string>",
+              "queryPairs": [
+                {
+                  "description": "...",
+                  "originalQuery": "SELECT ... LIMIT 500;",
+                  "adaptedQuery": "SELECT ... JOIN ... LIMIT 500;"
+                }
+              ]
+            }
+            """;
+
+        var userMessage = $"Recommendation:\n{recommendationJson}";
+
+        try
+        {
+            var chatClient = new ChatClient("gpt-4o-mini", openAiKey);
+            var response = await chatClient.CompleteChatAsync(
+            [
+                new SystemChatMessage(systemPrompt),
+                new UserChatMessage(userMessage),
+            ]);
+
+            var content = response.Value.Content[0].Text;
+            using var doc = JsonDocument.Parse(content);
+            var root = doc.RootElement;
+
+            var ddl = root.GetProperty("benchmarkDdl").GetString();
+            var pairs = root.GetProperty("queryPairs").EnumerateArray()
+                .Select(p => new QueryPair(
+                    p.GetProperty("description").GetString(),
+                    p.GetProperty("originalQuery").GetString(),
+                    p.GetProperty("adaptedQuery").GetString()))
+                .ToList();
+
+            return new BenchmarkPlan(ddl, pairs);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[SchemaAdvisor] Benchmark plan generation failed: {ex.Message}", ex);
+            return new BenchmarkPlan(null, null, $"AI failed to generate benchmark plan: {ex.Message}");
+        }
+    }
 
     private async Task<string> BuildSchemaContextAsync(string connectionString)
     {

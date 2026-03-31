@@ -20,6 +20,16 @@ public class QueryHistoryAppService : ApplicationService, IQueryHistoryAppServic
         _queryHistoryRepository = queryHistoryRepository;
     }
 
+    public async Task<List<QueryHistoryDto>> GetAllQueryHistoryAsync()
+    {
+        var entries = await _queryHistoryRepository.GetAllListAsync();
+
+        return entries
+            .OrderByDescending(q => q.CreationTime)
+            .Select(q => ObjectMapper.Map<QueryHistoryDto>(q))
+            .ToList();
+    }
+
     public async Task<List<QueryHistoryDto>> GetQueryHistoryByConnectionIdAsync(Guid connectionId)
     {
         var entries = await _queryHistoryRepository.GetAllListAsync(

@@ -4,6 +4,7 @@ using sql_optimizer.Authorization.Users;
 using sql_optimizer.Core.Domains.Database;
 using sql_optimizer.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
+using sql_optimizer.Core.Domains.QueryHistory;
 
 namespace sql_optimizer.EntityFrameworkCore;
 
@@ -12,6 +13,8 @@ public class sql_optimizerDbContext : AbpZeroDbContext<Tenant, Role, User, sql_o
     /* Define a DbSet for each entity of the application */
 
     public DbSet<DatabaseConnection> DatabaseConnections { get; set; }
+
+    public DbSet<QueryHistory> QueryHistories { get; set; }
 
     public sql_optimizerDbContext(DbContextOptions<sql_optimizerDbContext> options)
         : base(options)

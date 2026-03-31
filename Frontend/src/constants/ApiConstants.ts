@@ -14,4 +14,7 @@ export const API_CONSTANTS = {
     GET_SCHEMA: `${API_BASE_URL}/api/services/app/queryExecution/getSchema`,
     ANALYSE_QUERY: `${API_BASE_URL}/api/services/app/queryExecution/analyse`,
     BENCHMARK_QUERY: `${API_BASE_URL}/api/services/app/queryExecution/benchmark`,
+    GET_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/getQueryHistoryByConnectionId`,
+    ADD_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/addQueryHistoryEntry`,
+    DELETE_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/deleteQueryHistoryEntry`,
 };

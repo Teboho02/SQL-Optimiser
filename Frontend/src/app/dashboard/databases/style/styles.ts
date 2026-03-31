@@ -122,9 +122,16 @@ export const useStyles = createStyles(({ token }) => ({
     cardFooter: css`
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        gap: 8px;
         padding-top: 16px;
         border-top: 1px solid ${token.colorBorder};
+    `,
+
+    cardActions: css`
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-top: 12px;
     `,
 
     badgeConnected: css`

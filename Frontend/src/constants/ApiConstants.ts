@@ -24,4 +24,8 @@ export const API_CONSTANTS = {
     GET_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/getQueryHistoryByConnectionId`,
     ADD_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/addQueryHistoryEntry`,
     DELETE_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/deleteQueryHistoryEntry`,
+    GET_ALL_SCHEMA_SCANS: `${API_BASE_URL}/api/services/app/schemaAdvisorHistory/getAllScans`,
+    GET_SCHEMA_SCANS_BY_CONNECTION: `${API_BASE_URL}/api/services/app/schemaAdvisorHistory/getScansByConnection`,
+    ADD_SCHEMA_SCAN: `${API_BASE_URL}/api/services/app/schemaAdvisorHistory/addScan`,
+    DELETE_SCHEMA_SCAN: `${API_BASE_URL}/api/services/app/schemaAdvisorHistory/deleteScan`,
 };

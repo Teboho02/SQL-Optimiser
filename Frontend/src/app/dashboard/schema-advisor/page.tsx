@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Button, Select, Alert, Modal, Spin, Empty, Typography, Input, Table, Slider, Tag, Divider } from "antd";
+import React, { useState, useEffect, useCallback } from "react";
+import { Button, Select, Alert, Modal, Spin, Empty, Typography, Input, Table, Slider, Tag, Divider, Tooltip } from "antd";
 import type { TableProps } from "antd";
-import { ScanOutlined, CopyOutlined, ThunderboltOutlined, ExperimentOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { ScanOutlined, CopyOutlined, ThunderboltOutlined, ExperimentOutlined, PlusOutlined, DeleteOutlined, HistoryOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import RecommendationList from "./RecommendationList/RecommendationList";
 import RefactoringPanel from "./RefactoringPanel/RefactoringPanel";
 import { useStyles } from "./style/styles";
@@ -17,6 +17,7 @@ import {
     IQueryPairResult,
     IBenchmarkQueryPair,
 } from "@/services/schemaAdvisorService";
+import { getScansByConnection, addScan, deleteScan, ISchemaAdvisorScanDto } from "@/services/schemaAdvisorHistoryService";
 import { executeQuery } from "@/services/queryService";
 
 const { Text } = Typography;
@@ -32,6 +33,10 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [scanError, setScanError] = useState<string | null>(null);
     const [isScanning, setIsScanning] = useState(false);
+
+    // Scan history
+    const [scanHistory, setScanHistory] = useState<ISchemaAdvisorScanDto[]>([]);
+    const [activeScanId, setActiveScanId] = useState<string | null>(null);
 
     const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
     const [migrationSql, setMigrationSql] = useState<string | null>(null);
@@ -58,6 +63,11 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
     const [weightedImprovement, setWeightedImprovement] = useState<number | null>(null);
     const [compareError, setCompareError] = useState<string | null>(null);
 
+    const loadHistory = useCallback(async (connectionId: string): Promise<void> => {
+        const history = await getScansByConnection(connectionId);
+        setScanHistory(history);
+    }, []);
+
     useEffect(() => {
         void getDatabaseConnections().then((items) => {
             const restored = items.filter((c) => c.restoreStatus === 3);
@@ -68,6 +78,14 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
         });
     }, []);
 
+    useEffect(() => {
+        if (selectedConnectionId) {
+            void loadHistory(selectedConnectionId);
+        } else {
+            setScanHistory([]);
+        }
+    }, [selectedConnectionId, loadHistory]);
+
     const handleScanSchema = async (): Promise<void> => {
         if (!selectedConnectionId) return;
 
@@ -75,12 +93,17 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
         setScanError(null);
         setRecommendations([]);
         setSelectedId(null);
+        setActiveScanId(null);
 
         try {
             const output = await scanSchema(selectedConnectionId);
 
             if (output.error) {
                 setScanError(output.error);
+                // Save failed scan to history so the error is recorded
+                const saved = await addScan(selectedConnectionId, 0, null, output.error);
+                setScanHistory((prev) => [saved, ...prev]);
+                setActiveScanId(saved.id);
                 return;
             }
 
@@ -88,10 +111,44 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
             if (output.recommendations.length > 0) {
                 setSelectedId(output.recommendations[0].id);
             }
+
+            // Persist scan to history
+            const saved = await addScan(
+                selectedConnectionId,
+                output.recommendations.length,
+                JSON.stringify(output.recommendations),
+                null,
+            );
+            setScanHistory((prev) => [saved, ...prev]);
+            setActiveScanId(saved.id);
         } catch (err) {
-            setScanError(err instanceof Error ? err.message : "An unexpected error occurred.");
+            const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
+            setScanError(msg);
         } finally {
             setIsScanning(false);
+        }
+    };
+
+    const handleRestoreScan = (scan: ISchemaAdvisorScanDto): void => {
+        if (!scan.recommendationsJson) return;
+        try {
+            const recs = JSON.parse(scan.recommendationsJson) as IRecommendationDto[];
+            setRecommendations(recs);
+            setSelectedId(recs.length > 0 ? recs[0].id : null);
+            setScanError(null);
+            setActiveScanId(scan.id);
+        } catch {
+            // malformed JSON — ignore
+        }
+    };
+
+    const handleDeleteScan = async (scanId: string): Promise<void> => {
+        await deleteScan(scanId);
+        setScanHistory((prev) => prev.filter((s) => s.id !== scanId));
+        if (activeScanId === scanId) {
+            setActiveScanId(null);
+            setRecommendations([]);
+            setSelectedId(null);
         }
     };
 
@@ -448,6 +505,58 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                     );
                 })()}
             </Modal>
+            {/* ── SCAN HISTORY ── */}
+            {selectedConnectionId && (
+                <div className={styles.historySection}>
+                    <div className={styles.historyHeader}>
+                        <h3 className={styles.historyTitle}>
+                            <HistoryOutlined style={{ marginRight: 8 }} />
+                            Scan History
+                        </h3>
+                    </div>
+                    {scanHistory.length === 0 ? (
+                        <p style={{ fontSize: 13, color: "var(--ant-color-text-secondary)", margin: 0 }}>
+                            No previous scans for this connection. Run a scan to get started.
+                        </p>
+                    ) : (
+                        scanHistory.map((scan) => (
+                            <div
+                                key={scan.id}
+                                className={`${styles.historyItem}${activeScanId === scan.id ? ` ${styles.historyItemActive}` : ""}`}
+                                onClick={() => scan.recommendationsJson ? handleRestoreScan(scan) : undefined}
+                            >
+                                <ClockCircleOutlined style={{ fontSize: 16, color: "var(--ant-color-text-secondary)", flexShrink: 0 }} />
+                                <div className={styles.historyMeta}>
+                                    <p className={styles.historyTimestamp}>
+                                        {new Date(scan.creationTime).toLocaleString()}
+                                    </p>
+                                    <p className={styles.historyCount}>
+                                        {scan.errorMessage
+                                            ? `Error: ${scan.errorMessage}`
+                                            : `${scan.recommendationCount} recommendation${scan.recommendationCount !== 1 ? "s" : ""}`}
+                                    </p>
+                                </div>
+                                {scan.recommendationsJson && (
+                                    <Tag color="purple" style={{ flexShrink: 0 }}>
+                                        {scan.recommendationCount} rec{scan.recommendationCount !== 1 ? "s" : ""}
+                                    </Tag>
+                                )}
+                                {scan.errorMessage && <Tag color="error" style={{ flexShrink: 0 }}>Failed</Tag>}
+                                <Tooltip title="Delete this scan">
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={(e) => { e.stopPropagation(); void handleDeleteScan(scan.id); }}
+                                    />
+                                </Tooltip>
+                            </div>
+                        ))
+                    )}
+                </div>
+            )}
+
             <Modal
                 title={<span><ExperimentOutlined style={{ marginRight: 8 }} />Compare Schemas — AI Query Benchmark</span>}
                 open={isCompareModalOpen}

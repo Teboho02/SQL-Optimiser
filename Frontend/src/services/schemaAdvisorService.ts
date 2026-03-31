@@ -54,7 +54,14 @@ export async function scanSchema(connectionId: string): Promise<IScanSchemaOutpu
         headers: authHeaders(),
         body: JSON.stringify({ connectionId }),
     });
+
     const json = await response.json();
+
+    if (!response.ok) {
+        const message = json?.error?.message ?? `Request failed with status ${response.status}`;
+        return { recommendations: [], error: message };
+    }
+
     return json.result as IScanSchemaOutput;
 }
 
@@ -68,6 +75,13 @@ export async function generateMigration(connectionId: string, recommendation: IR
             recommendationJson: JSON.stringify(recommendation),
         }),
     });
+
     const json = await response.json();
+
+    if (!response.ok) {
+        const message = json?.error?.message ?? `Request failed with status ${response.status}`;
+        return { migrationSql: null, error: message };
+    }
+
     return json.result as IGenerateMigrationOutput;
 }

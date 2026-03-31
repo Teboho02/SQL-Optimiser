@@ -50,18 +50,22 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
         setRecommendations([]);
         setSelectedId(null);
 
-        const output = await scanSchema(selectedConnectionId);
+        try {
+            const output = await scanSchema(selectedConnectionId);
 
-        setIsScanning(false);
+            if (output.error) {
+                setScanError(output.error);
+                return;
+            }
 
-        if (output.error) {
-            setScanError(output.error);
-            return;
-        }
-
-        setRecommendations(output.recommendations);
-        if (output.recommendations.length > 0) {
-            setSelectedId(output.recommendations[0].id);
+            setRecommendations(output.recommendations);
+            if (output.recommendations.length > 0) {
+                setSelectedId(output.recommendations[0].id);
+            }
+        } catch (err) {
+            setScanError(err instanceof Error ? err.message : "An unexpected error occurred.");
+        } finally {
+            setIsScanning(false);
         }
     };
 
@@ -73,14 +77,18 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
         setMigrationSql(null);
         setMigrationError(null);
 
-        const output = await generateMigration(selectedConnectionId, selectedRecommendation);
+        try {
+            const output = await generateMigration(selectedConnectionId, selectedRecommendation);
 
-        setIsGenerating(false);
-
-        if (output.error) {
-            setMigrationError(output.error);
-        } else {
-            setMigrationSql(output.migrationSql ?? null);
+            if (output.error) {
+                setMigrationError(output.error);
+            } else {
+                setMigrationSql(output.migrationSql ?? null);
+            }
+        } catch (err) {
+            setMigrationError(err instanceof Error ? err.message : "An unexpected error occurred.");
+        } finally {
+            setIsGenerating(false);
         }
     };
 

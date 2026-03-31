@@ -16,5 +16,6 @@ export const API_CONSTANTS = {
     BENCHMARK_QUERY: `${API_BASE_URL}/api/services/app/queryExecution/benchmark`,
     SCAN_SCHEMA: `${API_BASE_URL}/api/services/app/schemaAdvisor/scanSchema`,
     GENERATE_MIGRATION: `${API_BASE_URL}/api/services/app/schemaAdvisor/generateMigration`,
+    GET_BENCHMARK_PLAN: `${API_BASE_URL}/api/services/app/schemaAdvisor/getBenchmarkPlan`,
     BENCHMARK_RECOMMENDATION: `${API_BASE_URL}/api/services/app/schemaAdvisor/benchmarkRecommendation`,
 };

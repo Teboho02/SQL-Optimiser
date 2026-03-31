@@ -5,29 +5,31 @@ namespace sql_optimizer.Services.SchemaAdvisorService.DTO;
 public class BenchmarkRecommendationOutput
 {
     public List<QueryPairResult> Results { get; set; } = new();
+
+    /// <summary>
+    /// Overall improvement weighted by ReadRatio.
+    /// Positive = net gain, negative = net regression.
+    /// Null when write results are absent (all read-only benchmark).
+    /// </summary>
+    public double? WeightedImprovementPercent { get; set; }
+
     public string Error { get; set; }
 }
 
 public class QueryPairResult
 {
-    /// <summary>What this query pair tests (e.g. "Fetch user orders with details").</summary>
     public string Description { get; set; }
-
-    /// <summary>Query that runs against the current (unmodified) schema.</summary>
     public string OriginalQuery { get; set; }
-
-    /// <summary>Equivalent query adapted for the proposed new schema.</summary>
     public string AdaptedQuery { get; set; }
 
-    /// <summary>Average execution time (ms) of the original query across all runs.</summary>
-    public double OriginalAvgMs { get; set; }
+    /// <summary>"read" or "write"</summary>
+    public string QueryType { get; set; }
 
-    /// <summary>Average execution time (ms) of the adapted query across all runs.</summary>
+    public double OriginalAvgMs { get; set; }
     public double AdaptedAvgMs { get; set; }
 
-    /// <summary>Performance improvement as a percentage (positive = faster).</summary>
+    /// <summary>Positive = adapted is faster. Negative = adapted is slower.</summary>
     public double ImprovementPercent { get; set; }
 
-    /// <summary>Set when either query fails to execute.</summary>
     public string Error { get; set; }
 }

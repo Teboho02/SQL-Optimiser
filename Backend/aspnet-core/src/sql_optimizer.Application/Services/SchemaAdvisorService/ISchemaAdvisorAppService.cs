@@ -18,9 +18,16 @@ public interface ISchemaAdvisorAppService : IApplicationService
     Task<GenerateMigrationOutput> GenerateMigrationAsync(GenerateMigrationInput input);
 
     /// <summary>
-    /// AI-generates representative query pairs (original + adapted for the new schema),
-    /// applies the structural changes inside a transaction, benchmarks both variants
-    /// against real data, then rolls back — leaving the database unchanged.
+    /// Asks the AI to generate a benchmark DDL and representative read + write query pairs
+    /// for the user to review and edit before running.
+    /// </summary>
+    Task<GetBenchmarkPlanOutput> GetBenchmarkPlanAsync(GetBenchmarkPlanInput input);
+
+    /// <summary>
+    /// Runs the benchmark using user-confirmed query pairs.
+    /// Applies the DDL inside a transaction, measures read and write performance on both schemas,
+    /// uses savepoints to undo write test data, then rolls back — leaving the database unchanged.
+    /// Returns per-query results and a weighted overall improvement score.
     /// </summary>
     Task<BenchmarkRecommendationOutput> BenchmarkRecommendationAsync(BenchmarkRecommendationInput input);
 }

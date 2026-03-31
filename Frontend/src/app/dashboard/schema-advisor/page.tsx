@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Button, Select, Alert, Modal, Spin, Empty, Typography, Input, Table } from "antd";
+import { Button, Select, Alert, Modal, Spin, Empty, Typography, Input, Table, Slider, Tag, Divider } from "antd";
 import type { TableProps } from "antd";
-import { ScanOutlined, CopyOutlined, ThunderboltOutlined, ExperimentOutlined } from "@ant-design/icons";
+import { ScanOutlined, CopyOutlined, ThunderboltOutlined, ExperimentOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import RecommendationList from "./RecommendationList/RecommendationList";
 import RefactoringPanel from "./RefactoringPanel/RefactoringPanel";
 import { useStyles } from "./style/styles";
@@ -11,9 +11,11 @@ import { getDatabaseConnections, IDatabaseConnectionDto } from "@/services/datab
 import {
     scanSchema,
     generateMigration,
+    getBenchmarkPlan,
     benchmarkRecommendation,
     IRecommendationDto,
     IQueryPairResult,
+    IBenchmarkQueryPair,
 } from "@/services/schemaAdvisorService";
 import { executeQuery } from "@/services/queryService";
 
@@ -42,9 +44,18 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
     const [isBenchmarking, setIsBenchmarking] = useState(false);
     const [benchmarkError, setBenchmarkError] = useState<string | null>(null);
 
+    // Compare Schemas modal state
     const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+    // "setup" → user reviews/edits query pairs; "running" → benchmark in progress; "results" → done
+    const [compareStep, setCompareStep] = useState<"setup" | "running" | "results">("setup");
+    const [isLoadingPlan, setIsLoadingPlan] = useState(false);
+    const [planError, setPlanError] = useState<string | null>(null);
+    const [benchmarkDdl, setBenchmarkDdl] = useState("");
+    const [involvesIndexes, setInvolvesIndexes] = useState(false);
+    const [queryPairs, setQueryPairs] = useState<IBenchmarkQueryPair[]>([]);
+    const [readRatio, setReadRatio] = useState(80); // percentage 0-100
     const [compareResults, setCompareResults] = useState<IQueryPairResult[]>([]);
-    const [isComparing, setIsComparing] = useState(false);
+    const [weightedImprovement, setWeightedImprovement] = useState<number | null>(null);
     const [compareError, setCompareError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -124,25 +135,64 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
     };
 
     const handleOpenCompare = (): void => {
-        setCompareResults([]);
+        if (!selectedConnectionId || !selectedRecommendation) return;
+        setCompareStep("setup");
+        setQueryPairs([]);
+        setBenchmarkDdl("");
+        setPlanError(null);
         setCompareError(null);
+        setCompareResults([]);
+        setWeightedImprovement(null);
         setIsCompareModalOpen(true);
-        void (async () => {
-            if (!selectedConnectionId || !selectedRecommendation) return;
-            setIsComparing(true);
-            try {
-                const output = await benchmarkRecommendation(selectedConnectionId, selectedRecommendation);
-                if (output.error) {
-                    setCompareError(output.error);
-                } else {
-                    setCompareResults(output.results);
-                }
-            } catch (err) {
-                setCompareError(err instanceof Error ? err.message : "An unexpected error occurred.");
-            } finally {
-                setIsComparing(false);
+        setIsLoadingPlan(true);
+
+        void getBenchmarkPlan(selectedConnectionId, selectedRecommendation).then((plan) => {
+            setIsLoadingPlan(false);
+            if (plan.error) { setPlanError(plan.error); return; }
+            setBenchmarkDdl(plan.benchmarkDdl ?? "");
+            setInvolvesIndexes(plan.involvesIndexes);
+            setQueryPairs(plan.queryPairs);
+        });
+    };
+
+    const handleAddCustomPair = (): void => {
+        setQueryPairs((prev) => [
+            ...prev,
+            { description: "", originalQuery: "", adaptedQuery: "", queryType: "read" },
+        ]);
+    };
+
+    const handleUpdatePair = (index: number, field: keyof IBenchmarkQueryPair, value: string): void => {
+        setQueryPairs((prev) => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
+    };
+
+    const handleRemovePair = (index: number): void => {
+        setQueryPairs((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const handleRunComparison = async (): Promise<void> => {
+        if (!selectedConnectionId || queryPairs.length === 0) return;
+        setCompareStep("running");
+        setCompareError(null);
+        try {
+            const output = await benchmarkRecommendation(
+                selectedConnectionId,
+                benchmarkDdl,
+                queryPairs,
+                readRatio / 100,
+            );
+            if (output.error) {
+                setCompareError(output.error);
+                setCompareStep("setup");
+            } else {
+                setCompareResults(output.results);
+                setWeightedImprovement(output.weightedImprovementPercent ?? null);
+                setCompareStep("results");
             }
-        })();
+        } catch (err) {
+            setCompareError(err instanceof Error ? err.message : "An unexpected error occurred.");
+            setCompareStep("setup");
+        }
     };
 
     const handleRunBenchmark = async (): Promise<void> => {
@@ -399,90 +449,191 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                 })()}
             </Modal>
             <Modal
-                title={
-                    <span>
-                        <ExperimentOutlined style={{ marginRight: 8 }} />
-                        Compare Schemas — AI Query Benchmark
-                    </span>
-                }
+                title={<span><ExperimentOutlined style={{ marginRight: 8 }} />Compare Schemas — AI Query Benchmark</span>}
                 open={isCompareModalOpen}
                 onCancel={() => setIsCompareModalOpen(false)}
-                width={860}
-                footer={[
-                    <Button key="close" type="primary" onClick={() => setIsCompareModalOpen(false)}>Close</Button>,
-                ]}
+                width={900}
+                footer={
+                    compareStep === "setup"
+                        ? [
+                              <Button key="add" icon={<PlusOutlined />} onClick={handleAddCustomPair}>Add Custom Query</Button>,
+                              <Button
+                                  key="run"
+                                  type="primary"
+                                  icon={<ExperimentOutlined />}
+                                  disabled={queryPairs.length === 0 || isLoadingPlan}
+                                  onClick={() => void handleRunComparison()}
+                              >
+                                  Run Benchmark
+                              </Button>,
+                          ]
+                        : compareStep === "results"
+                        ? [
+                              <Button key="back" onClick={() => setCompareStep("setup")}>Edit Queries</Button>,
+                              <Button key="close" type="primary" onClick={() => setIsCompareModalOpen(false)}>Close</Button>,
+                          ]
+                        : []
+                }
             >
-                {isComparing && (
+                {/* ── SETUP STEP ── */}
+                {compareStep === "setup" && (
+                    <>
+                        {isLoadingPlan && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                                <Spin size="small" />
+                                <Text type="secondary">AI is generating query suggestions…</Text>
+                            </div>
+                        )}
+                        {planError && <Alert type="error" message={planError} style={{ marginBottom: 12 }} />}
+                        {compareError && <Alert type="error" message={compareError} style={{ marginBottom: 12 }} />}
+
+                        {involvesIndexes && (
+                            <Alert
+                                type="info"
+                                style={{ marginBottom: 16 }}
+                                message="This recommendation adds indexes — indexes speed up reads but slow down writes."
+                                description={
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text style={{ fontSize: 13 }}>Estimated read/write ratio for your workload:</Text>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8 }}>
+                                            <Text strong style={{ minWidth: 80 }}>Reads {readRatio}%</Text>
+                                            <Slider
+                                                min={0} max={100} step={5}
+                                                value={readRatio}
+                                                onChange={setReadRatio}
+                                                style={{ flex: 1 }}
+                                            />
+                                            <Text strong style={{ minWidth: 80, textAlign: "right" }}>Writes {100 - readRatio}%</Text>
+                                        </div>
+                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                            This ratio is used to compute the weighted overall score.
+                                        </Text>
+                                    </div>
+                                }
+                            />
+                        )}
+
+                        {queryPairs.map((pair, idx) => (
+                            <div key={idx} style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                    <Tag color={pair.queryType === "write" ? "orange" : "blue"}>{pair.queryType.toUpperCase()}</Tag>
+                                    <Input
+                                        value={pair.description}
+                                        onChange={(e) => handleUpdatePair(idx, "description", e.target.value)}
+                                        placeholder="Description"
+                                        size="small"
+                                        style={{ flex: 1 }}
+                                    />
+                                    <Select
+                                        size="small"
+                                        value={pair.queryType}
+                                        options={[{ value: "read", label: "Read" }, { value: "write", label: "Write" }]}
+                                        onChange={(v) => handleUpdatePair(idx, "queryType", v)}
+                                        style={{ width: 80 }}
+                                    />
+                                    <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleRemovePair(idx)} />
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                    <div>
+                                        <Text type="secondary" style={{ fontSize: 11 }}>Original (current schema)</Text>
+                                        <Input.TextArea
+                                            value={pair.originalQuery}
+                                            onChange={(e) => handleUpdatePair(idx, "originalQuery", e.target.value)}
+                                            rows={3}
+                                            style={{ fontFamily: "monospace", fontSize: 12, marginTop: 4 }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Text type="secondary" style={{ fontSize: 11 }}>Adapted (new schema)</Text>
+                                        <Input.TextArea
+                                            value={pair.adaptedQuery}
+                                            onChange={(e) => handleUpdatePair(idx, "adaptedQuery", e.target.value)}
+                                            rows={3}
+                                            style={{ fontFamily: "monospace", fontSize: 12, marginTop: 4 }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                        {!isLoadingPlan && queryPairs.length === 0 && !planError && (
+                            <Empty description="No query pairs yet — click 'Add Custom Query' to add your own." />
+                        )}
+                    </>
+                )}
+
+                {/* ── RUNNING STEP ── */}
+                {compareStep === "running" && (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", gap: 12 }}>
                         <Spin size="large" />
-                        <Text style={{ fontSize: 13 }}>
-                            AI is generating query suggestions and running benchmarks on both schemas…
-                        </Text>
+                        <Text style={{ fontSize: 13 }}>Running benchmark on both schemas… this may take a moment.</Text>
                     </div>
                 )}
 
-                {compareError && <Alert type="error" message={compareError} />}
-
-                {!isComparing && compareResults.map((result, idx) => (
-                    <div key={idx} style={{ marginBottom: 28 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                            <Text strong style={{ fontSize: 14 }}>
-                                {idx + 1}. {result.description}
-                            </Text>
-                            {result.error
-                                ? <Alert type="error" message={result.error} style={{ padding: "2px 8px" }} />
-                                : (
-                                    <Text
-                                        strong
-                                        style={{
-                                            color: result.improvementPercent >= 0 ? "#52c41a" : "#ff4d4f",
-                                            fontSize: 15,
-                                        }}
-                                    >
-                                        {result.improvementPercent >= 0 ? "+" : ""}{result.improvementPercent}% faster
+                {/* ── RESULTS STEP ── */}
+                {compareStep === "results" && (
+                    <>
+                        {weightedImprovement !== null && (
+                            <Alert
+                                type={weightedImprovement >= 0 ? "success" : "warning"}
+                                style={{ marginBottom: 20 }}
+                                message={
+                                    <Text strong style={{ fontSize: 15 }}>
+                                        Weighted Overall Score ({readRatio}% reads / {100 - readRatio}% writes):&nbsp;
+                                        <span style={{ color: weightedImprovement >= 0 ? "#52c41a" : "#ff4d4f" }}>
+                                            {weightedImprovement >= 0 ? "+" : ""}{weightedImprovement}%
+                                        </span>
                                     </Text>
-                                )
-                            }
-                        </div>
-
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
-                            <div>
-                                <Text type="secondary" style={{ fontSize: 11, display: "block", marginBottom: 4 }}>
-                                    ORIGINAL QUERY (current schema)
-                                </Text>
-                                <pre style={{ background: "rgba(255,60,60,0.06)", border: "1px solid rgba(255,100,100,0.2)", borderRadius: 6, padding: 10, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", maxHeight: 160, overflow: "auto" }}>
-                                    {result.originalQuery}
-                                </pre>
-                            </div>
-                            <div>
-                                <Text type="secondary" style={{ fontSize: 11, display: "block", marginBottom: 4 }}>
-                                    ADAPTED QUERY (new schema)
-                                </Text>
-                                <pre style={{ background: "rgba(60,255,100,0.06)", border: "1px solid rgba(60,200,100,0.2)", borderRadius: 6, padding: 10, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", maxHeight: 160, overflow: "auto" }}>
-                                    {result.adaptedQuery}
-                                </pre>
-                            </div>
-                        </div>
-
-                        {!result.error && (
-                            <div style={{ display: "flex", gap: 16 }}>
-                                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "8px 20px", textAlign: "center" }}>
-                                    <Text type="secondary" style={{ fontSize: 11, display: "block" }}>Original Avg</Text>
-                                    <Text strong style={{ fontSize: 18 }}>{result.originalAvgMs.toFixed(1)} ms</Text>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", fontSize: 18, color: "rgba(255,255,255,0.3)" }}>→</div>
-                                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "8px 20px", textAlign: "center" }}>
-                                    <Text type="secondary" style={{ fontSize: 11, display: "block" }}>Adapted Avg</Text>
-                                    <Text strong style={{ fontSize: 18, color: result.adaptedAvgMs < result.originalAvgMs ? "#52c41a" : "#ff4d4f" }}>
-                                        {result.adaptedAvgMs.toFixed(1)} ms
-                                    </Text>
-                                </div>
-                            </div>
+                                }
+                            />
                         )}
 
-                        {idx < compareResults.length - 1 && <hr style={{ marginTop: 20, border: "none", borderTop: "1px solid rgba(255,255,255,0.06)" }} />}
-                    </div>
-                ))}
+                        {compareResults.map((result, idx) => (
+                            <div key={idx} style={{ marginBottom: 24 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                    <Tag color={result.queryType === "write" ? "orange" : "blue"}>{result.queryType.toUpperCase()}</Tag>
+                                    <Text strong style={{ flex: 1 }}>{result.description}</Text>
+                                    {result.error
+                                        ? <Tag color="error">Error</Tag>
+                                        : <Text strong style={{ color: result.improvementPercent >= 0 ? "#52c41a" : "#ff4d4f" }}>
+                                            {result.improvementPercent >= 0 ? "+" : ""}{result.improvementPercent}%
+                                          </Text>
+                                    }
+                                </div>
+
+                                {result.error
+                                    ? <Alert type="error" message={result.error} />
+                                    : (
+                                        <>
+                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                                                <pre style={{ background: "rgba(255,60,60,0.06)", border: "1px solid rgba(255,100,100,0.2)", borderRadius: 6, padding: 10, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", maxHeight: 120, overflow: "auto" }}>
+                                                    {result.originalQuery}
+                                                </pre>
+                                                <pre style={{ background: "rgba(60,255,100,0.06)", border: "1px solid rgba(60,200,100,0.2)", borderRadius: 6, padding: 10, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", maxHeight: 120, overflow: "auto" }}>
+                                                    {result.adaptedQuery}
+                                                </pre>
+                                            </div>
+                                            <div style={{ display: "flex", gap: 12 }}>
+                                                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "6px 18px", textAlign: "center" }}>
+                                                    <Text type="secondary" style={{ fontSize: 11, display: "block" }}>Original Avg</Text>
+                                                    <Text strong style={{ fontSize: 16 }}>{result.originalAvgMs.toFixed(1)} ms</Text>
+                                                </div>
+                                                <div style={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.3)" }}>→</div>
+                                                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "6px 18px", textAlign: "center" }}>
+                                                    <Text type="secondary" style={{ fontSize: 11, display: "block" }}>Adapted Avg</Text>
+                                                    <Text strong style={{ fontSize: 16, color: result.adaptedAvgMs < result.originalAvgMs ? "#52c41a" : "#ff4d4f" }}>
+                                                        {result.adaptedAvgMs.toFixed(1)} ms
+                                                    </Text>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )
+                                }
+                                {idx < compareResults.length - 1 && <Divider style={{ margin: "16px 0" }} />}
+                            </div>
+                        ))}
+                    </>
+                )}
             </Modal>
         </>
     );

@@ -7,7 +7,6 @@ import { ScanOutlined, CopyOutlined, ThunderboltOutlined, ExperimentOutlined, Pl
 import RecommendationList from "./RecommendationList/RecommendationList";
 import RefactoringPanel from "./RefactoringPanel/RefactoringPanel";
 import { useStyles } from "./style/styles";
-import { getDatabaseConnections, IDatabaseConnectionDto } from "@/services/databaseConnectionService";
 import {
     scanSchema,
     generateMigration,
@@ -17,8 +16,10 @@ import {
     IQueryPairResult,
     IBenchmarkQueryPair,
 } from "@/services/schemaAdvisorService";
-import { getScansByConnection, addScan, deleteScan, ISchemaAdvisorScanDto } from "@/services/schemaAdvisorHistoryService";
+import { ISchemaAdvisorScanDto } from "@/services/schemaAdvisorHistoryService";
 import { executeQuery } from "@/services/queryService";
+import { useDatabaseConnectionState, useDatabaseConnectionActions } from "@/providers/databaseConnection";
+import { useSchemaAdvisorHistoryState, useSchemaAdvisorHistoryActions } from "@/providers/schemaAdvisorHistory";
 
 const { Text } = Typography;
 
@@ -26,17 +27,17 @@ const { Text } = Typography;
 export default function SchemaAdvisorPage(): React.JSX.Element {
     const { styles } = useStyles();
 
-    const [connections, setConnections] = useState<IDatabaseConnectionDto[]>([]);
-    const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+    const { connections, selectedConnectionId } = useDatabaseConnectionState();
+    const { getConnections, setSelectedConnectionId } = useDatabaseConnectionActions();
+    const { scans: scanHistory, activeScanId } = useSchemaAdvisorHistoryState();
+    const { getScansByConnection, addScan, deleteScan, setActiveScanId } = useSchemaAdvisorHistoryActions();
+
+    const restoredConnections = connections.filter((c) => c.restoreStatus === 3);
 
     const [recommendations, setRecommendations] = useState<IRecommendationDto[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [scanError, setScanError] = useState<string | null>(null);
     const [isScanning, setIsScanning] = useState(false);
-
-    // Scan history
-    const [scanHistory, setScanHistory] = useState<ISchemaAdvisorScanDto[]>([]);
-    const [activeScanId, setActiveScanId] = useState<string | null>(null);
 
     const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
     const [migrationSql, setMigrationSql] = useState<string | null>(null);
@@ -63,28 +64,22 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
     const [weightedImprovement, setWeightedImprovement] = useState<number | null>(null);
     const [compareError, setCompareError] = useState<string | null>(null);
 
-    const loadHistory = useCallback(async (connectionId: string): Promise<void> => {
-        const history = await getScansByConnection(connectionId);
-        setScanHistory(history);
-    }, []);
+    useEffect(() => {
+        void getConnections();
+    }, [getConnections]);
 
     useEffect(() => {
-        void getDatabaseConnections().then((items) => {
-            const restored = items.filter((c) => c.restoreStatus === 3);
-            setConnections(restored);
-            if (restored.length === 1) {
-                setSelectedConnectionId(restored[0].id);
-            }
-        });
-    }, []);
+        if (restoredConnections.length === 1 && !selectedConnectionId) {
+            setSelectedConnectionId(restoredConnections[0].id);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [connections]);
 
     useEffect(() => {
         if (selectedConnectionId) {
-            void loadHistory(selectedConnectionId);
-        } else {
-            setScanHistory([]);
+            void getScansByConnection(selectedConnectionId);
         }
-    }, [selectedConnectionId, loadHistory]);
+    }, [selectedConnectionId, getScansByConnection]);
 
     const handleScanSchema = async (): Promise<void> => {
         if (!selectedConnectionId) return;
@@ -100,10 +95,7 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
 
             if (output.error) {
                 setScanError(output.error);
-                // Save failed scan to history so the error is recorded
-                const saved = await addScan(selectedConnectionId, 0, null, output.error);
-                setScanHistory((prev) => [saved, ...prev]);
-                setActiveScanId(saved.id);
+                void addScan(selectedConnectionId, 0, null, output.error);
                 return;
             }
 
@@ -112,18 +104,14 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                 setSelectedId(output.recommendations[0].id);
             }
 
-            // Persist scan to history
-            const saved = await addScan(
+            void addScan(
                 selectedConnectionId,
                 output.recommendations.length,
                 JSON.stringify(output.recommendations),
                 null,
             );
-            setScanHistory((prev) => [saved, ...prev]);
-            setActiveScanId(saved.id);
         } catch (err) {
-            const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
-            setScanError(msg);
+            setScanError(err instanceof Error ? err.message : "An unexpected error occurred.");
         } finally {
             setIsScanning(false);
         }
@@ -142,11 +130,9 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
         }
     };
 
-    const handleDeleteScan = async (scanId: string): Promise<void> => {
-        await deleteScan(scanId);
-        setScanHistory((prev) => prev.filter((s) => s.id !== scanId));
+    const handleDeleteScan = (scanId: string): void => {
+        void deleteScan(scanId);
         if (activeScanId === scanId) {
-            setActiveScanId(null);
             setRecommendations([]);
             setSelectedId(null);
         }
@@ -279,7 +265,7 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
 
     const selectedRecommendation = recommendations.find((r) => r.id === selectedId) ?? null;
 
-    const connectionOptions = connections.map((c) => ({
+    const connectionOptions = restoredConnections.map((c) => ({
         value: c.id,
         label: c.name,
     }));

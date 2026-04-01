@@ -6,17 +6,11 @@ import DatabasesHeader from "./DatabasesHeader/DatabasesHeader";
 import ConnectionCardList from "./ConnectionCardList/ConnectionCardList";
 import AddConnectionForm from "./AddConnectionForm/AddConnectionForm";
 import EditConnectionModal from "./EditConnectionModal/EditConnectionModal";
-import {
-    getDatabaseConnections,
-    IDatabaseConnectionDto,
-    DATABASE_ENGINE_NAMES,
-    RESTORE_STATUS_LABELS,
-    triggerDump,
-    triggerRestore,
-} from "@/services/databaseConnectionService";
+import DataGeneratorDrawer from "./DataGeneratorDrawer/DataGeneratorDrawer";
+import { IDatabaseConnectionDto, DATABASE_ENGINE_NAMES, RESTORE_STATUS_LABELS } from "@/services/databaseConnectionService";
+import { useDatabaseConnectionState, useDatabaseConnectionActions } from "@/providers/databaseConnection";
 import { IDatabase } from "./ConnectionCard/ConnectionCard";
 
-/** Maps a backend DTO to the shape expected by ConnectionCard. */
 function mapToDatabase(dto: IDatabaseConnectionDto): IDatabase {
     return {
         id: dto.id,
@@ -30,10 +24,10 @@ function mapToDatabase(dto: IDatabaseConnectionDto): IDatabase {
         isLocalReady: dto.restoreStatus === 3,
         dumpStatus: dto.dumpStatus,
         restoreStatusRaw: dto.restoreStatus,
+        schemaOnly: dto.schemaOnly,
     };
 }
 
-/** Returns true if any connection has a pending or in-progress dump or restore. */
 function hasActiveOperation(items: IDatabaseConnectionDto[]): boolean {
     return items.some((c) =>
         c.dumpStatus === 1 || c.dumpStatus === 2 ||
@@ -41,55 +35,47 @@ function hasActiveOperation(items: IDatabaseConnectionDto[]): boolean {
     );
 }
 
-/** Databases page — view registered connections and add new ones. */
 export default function DatabasesPage(): React.JSX.Element {
-    const [rawConnections, setRawConnections] = useState<IDatabaseConnectionDto[]>([]);
-    const [databases, setDatabases] = useState<IDatabase[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const { connections, isPending } = useDatabaseConnectionState();
+    const { getConnections, triggerDump, triggerRestore } = useDatabaseConnectionActions();
+
     const [editingConnection, setEditingConnection] = useState<IDatabaseConnectionDto | null>(null);
+    const [dataGenConnectionId, setDataGenConnectionId] = useState<string | null>(null);
     const [dumpingIds, setDumpingIds] = useState<Set<string>>(new Set());
     const [rebuildingIds, setRebuildingIds] = useState<Set<string>>(new Set());
     const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const fetchConnections = useCallback(async (): Promise<IDatabaseConnectionDto[]> => {
-        const items = await getDatabaseConnections();
-        setRawConnections(items);
-        setDatabases(items.map(mapToDatabase));
-        return items;
-    }, []);
-
     const startPolling = useCallback(() => {
         if (pollTimerRef.current) return;
-        pollTimerRef.current = setInterval(async () => {
-            const items = await fetchConnections();
-            if (!hasActiveOperation(items)) {
+        pollTimerRef.current = setInterval(() => {
+            void getConnections();
+            if (!hasActiveOperation(connections)) {
                 clearInterval(pollTimerRef.current!);
                 pollTimerRef.current = null;
             }
         }, 3000);
-    }, [fetchConnections]);
+    }, [getConnections, connections]);
 
     useEffect(() => {
-        setIsLoading(true);
-        fetchConnections()
-            .then((items) => {
-                if (hasActiveOperation(items)) startPolling();
-            })
-            .finally(() => setIsLoading(false));
-
+        void getConnections();
         return () => {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
         };
-    }, [fetchConnections, startPolling]);
+    }, [getConnections]);
+
+    useEffect(() => {
+        if (hasActiveOperation(connections)) {
+            startPolling();
+        }
+    }, [connections, startPolling]);
 
     const handleEdit = (id: string): void => {
-        const connection = rawConnections.find((c) => c.id === id) ?? null;
-        setEditingConnection(connection);
+        setEditingConnection(connections.find((c) => c.id === id) ?? null);
     };
 
     const handleEditSaved = (): void => {
         setEditingConnection(null);
-        void fetchConnections().then(startPolling);
+        void getConnections();
     };
 
     const handleDump = async (id: string): Promise<void> => {
@@ -97,10 +83,9 @@ export default function DatabasesPage(): React.JSX.Element {
         try {
             await triggerDump(id);
             void message.success("Dump queued — the snapshot will be ready shortly.");
-            await fetchConnections();
             startPolling();
-        } catch (err) {
-            void message.error(err instanceof Error ? err.message : "Failed to trigger dump.");
+        } catch {
+            void message.error("Failed to trigger dump.");
         } finally {
             setDumpingIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
         }
@@ -111,10 +96,9 @@ export default function DatabasesPage(): React.JSX.Element {
         try {
             await triggerRestore(id);
             void message.success("Rebuild queued — the local copy will be ready shortly.");
-            await fetchConnections();
             startPolling();
-        } catch (err) {
-            void message.error(err instanceof Error ? err.message : "Failed to trigger rebuild.");
+        } catch {
+            void message.error("Failed to trigger rebuild.");
         } finally {
             setRebuildingIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
         }
@@ -124,19 +108,25 @@ export default function DatabasesPage(): React.JSX.Element {
         <>
             <DatabasesHeader />
             <ConnectionCardList
-                databases={databases}
-                isLoading={isLoading}
+                databases={connections.map(mapToDatabase)}
+                isLoading={isPending && connections.length === 0}
                 onEdit={handleEdit}
                 onDump={handleDump}
                 onRebuild={handleRebuild}
+                onGenerateData={(id) => setDataGenConnectionId(id)}
                 dumpingIds={dumpingIds}
                 rebuildingIds={rebuildingIds}
             />
-            <AddConnectionForm onSaved={() => void fetchConnections()} />
+            <AddConnectionForm onSaved={() => void getConnections()} />
             <EditConnectionModal
                 connection={editingConnection}
                 onClose={() => setEditingConnection(null)}
                 onSaved={handleEditSaved}
+            />
+            <DataGeneratorDrawer
+                connectionId={dataGenConnectionId}
+                connectionName={connections.find((c) => c.id === dataGenConnectionId)?.name ?? ""}
+                onClose={() => setDataGenConnectionId(null)}
             />
         </>
     );

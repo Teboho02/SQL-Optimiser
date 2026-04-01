@@ -33,6 +33,8 @@ public class DatabaseConnectionDto : EntityDto<Guid>
 
     public DateTime LastSyncTime { get; set; }
 
+    public bool SchemaOnly { get; set; }
+
     public DumpStatus DumpStatus { get; set; }
 
     public string DumpFilePath { get; set; }

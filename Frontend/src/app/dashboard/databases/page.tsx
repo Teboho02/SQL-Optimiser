@@ -6,6 +6,7 @@ import DatabasesHeader from "./DatabasesHeader/DatabasesHeader";
 import ConnectionCardList from "./ConnectionCardList/ConnectionCardList";
 import AddConnectionForm from "./AddConnectionForm/AddConnectionForm";
 import EditConnectionModal from "./EditConnectionModal/EditConnectionModal";
+import DataGeneratorDrawer from "./DataGeneratorDrawer/DataGeneratorDrawer";
 import { IDatabaseConnectionDto, DATABASE_ENGINE_NAMES, RESTORE_STATUS_LABELS } from "@/services/databaseConnectionService";
 import { useDatabaseConnectionState, useDatabaseConnectionActions } from "@/providers/databaseConnection";
 import { IDatabase } from "./ConnectionCard/ConnectionCard";
@@ -23,6 +24,7 @@ function mapToDatabase(dto: IDatabaseConnectionDto): IDatabase {
         isLocalReady: dto.restoreStatus === 3,
         dumpStatus: dto.dumpStatus,
         restoreStatusRaw: dto.restoreStatus,
+        schemaOnly: dto.schemaOnly,
     };
 }
 
@@ -38,6 +40,7 @@ export default function DatabasesPage(): React.JSX.Element {
     const { getConnections, triggerDump, triggerRestore } = useDatabaseConnectionActions();
 
     const [editingConnection, setEditingConnection] = useState<IDatabaseConnectionDto | null>(null);
+    const [dataGenConnectionId, setDataGenConnectionId] = useState<string | null>(null);
     const [dumpingIds, setDumpingIds] = useState<Set<string>>(new Set());
     const [rebuildingIds, setRebuildingIds] = useState<Set<string>>(new Set());
     const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -110,6 +113,7 @@ export default function DatabasesPage(): React.JSX.Element {
                 onEdit={handleEdit}
                 onDump={handleDump}
                 onRebuild={handleRebuild}
+                onGenerateData={(id) => setDataGenConnectionId(id)}
                 dumpingIds={dumpingIds}
                 rebuildingIds={rebuildingIds}
             />
@@ -118,6 +122,11 @@ export default function DatabasesPage(): React.JSX.Element {
                 connection={editingConnection}
                 onClose={() => setEditingConnection(null)}
                 onSaved={handleEditSaved}
+            />
+            <DataGeneratorDrawer
+                connectionId={dataGenConnectionId}
+                connectionName={connections.find((c) => c.id === dataGenConnectionId)?.name ?? ""}
+                onClose={() => setDataGenConnectionId(null)}
             />
         </>
     );

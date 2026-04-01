@@ -22,6 +22,16 @@ public interface IQueryExecutionAppService : IApplicationService
     Task<List<SchemaTableDto>> GetSchemaAsync(Guid connectionId);
 
     /// <summary>
+    /// Returns all user tables with detailed column metadata (type, nullable, PK, FK) and FK relationships.
+    /// </summary>
+    Task<SchemaWithRelationshipsDto> GetSchemaWithRelationshipsAsync(Guid connectionId);
+
+    /// <summary>
+    /// Uses AI to generate and insert test data into the local database respecting FK constraints.
+    /// </summary>
+    Task<GenerateTestDataOutput> GenerateTestDataAsync(GenerateTestDataInput input);
+
+    /// <summary>
     /// Runs EXPLAIN ANALYZE on the query, then asks the AI to suggest an optimised version.
     /// </summary>
     Task<AnalyseQueryOutput> AnalyseAsync(AnalyseQueryInput input);

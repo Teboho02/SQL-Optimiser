@@ -24,7 +24,8 @@ test.describe("QueryAnalysisPage", () => {
     test("shows SQL editor with PostgreSQL badge", async ({ page }) => {
         await page.goto("/dashboard/query-analysis");
         await expect(page.getByText("PostgreSQL")).toBeVisible();
-        await expect(page.getByText("prod-main")).toBeVisible();
+        // No connection is selected in a fresh test — the editor shows the fallback label
+        await expect(page.getByText("No connection selected")).toBeVisible();
     });
 
     test("shows Format and Clear buttons", async ({ page }) => {

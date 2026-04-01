@@ -12,7 +12,7 @@ team-3/
 
 Every piece of work — new features, bug fixes, pages, refactors, or any other task — must have a corresponding GitHub issue **before** work begins.
 
-- If no issue exists for the task, create one first using `gh issue create`.
+- If no issue exists for the task, use the `create-issue` skill to create one first.
 - Use the project's feature request or bug report format as appropriate.
 - Reference the issue number in commit messages and pull requests.
 

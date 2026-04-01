@@ -16,15 +16,15 @@ export function withAuth<P extends object>(
 ): React.FC<P> {
     const AuthGuard: React.FC<P> = (props) => {
         const router = useRouter();
-        const [isAuthorised, setIsAuthorised] = useState(false);
+        // Initialise synchronously from the cookie so the effect only ever
+        // performs navigation (an external side-effect), never setState.
+        const [isAuthorised] = useState(() => tokenService.isAuthenticated());
 
         useEffect(() => {
-            if (!tokenService.isAuthenticated()) {
+            if (!isAuthorised) {
                 router.replace("/login");
-            } else {
-                setIsAuthorised(true);
             }
-        }, [router]);
+        }, [isAuthorised, router]);
 
         if (!isAuthorised) return null;
 

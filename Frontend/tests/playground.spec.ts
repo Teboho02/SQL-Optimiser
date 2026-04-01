@@ -29,7 +29,8 @@ test.describe("Playground", () => {
 
     test("displays connection selector", async ({ page }) => {
         await page.goto("/dashboard/playground");
-        await expect(page.getByText("Connection")).toBeVisible();
+        // "Connection" label appears as a span above the Select; use first() to avoid strict-mode violation
+        await expect(page.getByText("Connection", { exact: true }).first()).toBeVisible();
     });
 
     test("SchemaPanel shows placeholder when no connection is selected", async ({ page }) => {
@@ -39,11 +40,13 @@ test.describe("Playground", () => {
 
     test("displays History panel", async ({ page }) => {
         await page.goto("/dashboard/playground");
-        await expect(page.getByText("History")).toBeVisible();
+        // "History" appears in both sidebar nav and the panel header; first() targets the panel
+        await expect(page.getByText("History", { exact: true }).first()).toBeVisible();
     });
 
     test("History panel shows placeholder when no connection is selected", async ({ page }) => {
         await page.goto("/dashboard/playground");
-        await expect(page.getByText("Select a connection")).toBeVisible();
+        // Ant Design Empty renders description in both inner span and wrapper; use first()
+        await expect(page.getByText("Select a connection", { exact: true }).first()).toBeVisible();
     });
 });

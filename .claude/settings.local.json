@@ -11,7 +11,9 @@
       "Bash(git checkout:*)",
       "Bash(gh issue:*)",
       "Bash(gh api:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(\"C:\\\\Users\\\\Teboho\\\\Documents\\\\Projects\\\\SQL-Optimiser\\\\Frontend\\\\.gitignore\":*)",
+      "Bash(npx playwright:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

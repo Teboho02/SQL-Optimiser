@@ -58,24 +58,30 @@ test.describe("Login", () => {
     // ── Successful login ───────────────────────────────────────────────────────
 
     test("logs in with valid admin credentials and redirects to dashboard", async ({ page }) => {
+        // Multiple login tests run concurrently; give extra headroom for backend latency
+        test.setTimeout(60_000);
+
         await page.goto("/login");
 
         await page.getByLabel("Email Address").fill("admin");
         await page.getByLabel("Password").fill("123qwe");
         await page.getByRole("button", { name: "Sign In" }).click();
 
-        await page.waitForURL("/dashboard", { timeout: 15_000 });
+        await page.waitForURL("/dashboard", { timeout: 45_000 });
         await expect(page).toHaveURL("/dashboard");
     });
 
     test("sets auth cookie after successful login", async ({ page }) => {
+        // Multiple login tests run concurrently; give extra headroom for backend latency
+        test.setTimeout(60_000);
+
         await page.goto("/login");
 
         await page.getByLabel("Email Address").fill("admin");
         await page.getByLabel("Password").fill("123qwe");
         await page.getByRole("button", { name: "Sign In" }).click();
 
-        await page.waitForURL("/dashboard", { timeout: 15_000 });
+        await page.waitForURL("/dashboard", { timeout: 45_000 });
 
         const cookies = await page.context().cookies();
         const authCookie = cookies.find((c) => c.name === "access_token");

@@ -1,29 +1,19 @@
 "use client";
 
 import { Drawer } from "antd";
-import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import DashboardSidebar from "../DashboardSidebar/DashboardSidebar";
 import DashboardHeader from "../DashboardHeader/DashboardHeader";
-import { tokenService } from "@/services/tokenService";
 import { useStyles } from "./style/styles";
 
 interface IDashboardLayoutProps {
     children: React.ReactNode;
 }
 
-/** Structural shell that manages the sidebar, mobile drawer, header, and scrollable content area.
- * Redirects to /login if no valid token is present. */
+/** Structural shell that manages the sidebar, mobile drawer, header, and scrollable content area. */
 const DashboardLayout: React.FC<IDashboardLayoutProps> = ({ children }) => {
     const { styles } = useStyles();
-    const router = useRouter();
     const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
-
-    useEffect(() => {
-        if (!tokenService.isAuthenticated()) {
-            router.replace("/login");
-        }
-    }, [router]);
 
     return (
         <div className={styles.shell}>

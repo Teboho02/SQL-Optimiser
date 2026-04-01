@@ -15,9 +15,9 @@ Work through these six steps in order. Do not skip any step.
 
 ---
 
-### Step 1 — Domain Entity (`SqlOptimiser.Core`)
+### Step 1 — Domain Entity (`sql_optimizer.Core`)
 
-**File:** `aspnet-core/src/SqlOptimiser.Core/Domains/{Module Name}/{EntityName}.cs`
+**File:** `Backend/aspnet-core/src/sql_optimizer.Core/Domains/{Module Name}/{EntityName}.cs`
 
 Rules:
 - Extend `FullAuditedEntity<Guid>` — provides audit fields and soft delete automatically.
@@ -38,9 +38,9 @@ public class {EntityName} : FullAuditedEntity<Guid>
 
 ---
 
-### Step 2 — Register in DbContext (`SqlOptimiser.EntityFrameworkCore`)
+### Step 2 — Register in DbContext (`sql_optimizer.EntityFrameworkCore`)
 
-**File:** `aspnet-core/src/SqlOptimiser.EntityFrameworkCore/EntityFrameworkCore/SqlOptimiserDbContext.cs`
+**File:** `Backend/aspnet-core/src/sql_optimizer.EntityFrameworkCore/EntityFrameworkCore/sql_optimizerDbContext.cs`
 
 Add one line inside the class:
 
@@ -57,15 +57,27 @@ Only add `OnModelCreating` configuration if data annotations are insufficient (e
 Do **not** generate the migration file yourself. Instead, output this command for the user to run:
 
 ```bash
-cd aspnet-core
-dotnet ef migrations add Add{EntityName} --project src/SqlOptimiser.EntityFrameworkCore
+cd Backend/aspnet-core
+dotnet ef migrations add Add{EntityName} \
+  --project src/sql_optimizer.EntityFrameworkCore \
+  --startup-project src/sql_optimizer.Web.Host
 ```
+
+To apply the migration to the database:
+
+```bash
+dotnet ef database update \
+  --project src/sql_optimizer.EntityFrameworkCore \
+  --startup-project src/sql_optimizer.Web.Host
+```
+
+> **Why `--startup-project`?** The `sql_optimizer.EntityFrameworkCore` project is a class library. EF Core design-time tools require a runnable startup project that references `Microsoft.EntityFrameworkCore.Design`. `sql_optimizer.Web.Host` satisfies this requirement.
 
 ---
 
-### Step 4 — DTO (`SqlOptimiser.Application`)
+### Step 4 — DTO (`sql_optimizer.Application`)
 
-**File:** `aspnet-core/src/SqlOptimiser.Application/Services/{EntityName}Service/DTO/{EntityName}Dto.cs`
+**File:** `Backend/aspnet-core/src/sql_optimizer.Application/Services/{EntityName}Service/DTO/{EntityName}Dto.cs`
 
 Rules:
 - Decorate with `[AutoMap(typeof({EntityName}))]`.
@@ -85,9 +97,9 @@ public class {EntityName}Dto : EntityDto<Guid>
 
 ---
 
-### Step 5 — Service Interface (`SqlOptimiser.Application`)
+### Step 5 — Service Interface (`sql_optimizer.Application`)
 
-**File:** `aspnet-core/src/SqlOptimiser.Application/Services/{EntityName}Service/I{EntityName}AppService.cs`
+**File:** `Backend/aspnet-core/src/sql_optimizer.Application/Services/{EntityName}Service/I{EntityName}AppService.cs`
 
 ```csharp
 // Services/{EntityName}Service/I{EntityName}AppService.cs
@@ -100,9 +112,9 @@ public interface I{EntityName}AppService
 
 ---
 
-### Step 6 — Service Implementation (`SqlOptimiser.Application`)
+### Step 6 — Service Implementation (`sql_optimizer.Application`)
 
-**File:** `aspnet-core/src/SqlOptimiser.Application/Services/{EntityName}Service/{EntityName}AppService.cs`
+**File:** `Backend/aspnet-core/src/sql_optimizer.Application/Services/{EntityName}Service/{EntityName}AppService.cs`
 
 Rules:
 - Extend `AsyncCrudAppService` for standard CRUD, or `ApplicationService` for custom logic.

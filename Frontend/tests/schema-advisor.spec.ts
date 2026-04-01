@@ -18,7 +18,8 @@ test.describe("Schema Advisor", () => {
 
     test("displays connection selector", async ({ page }) => {
         await page.goto("/dashboard/schema-advisor");
-        await expect(page.getByPlaceholder("Select a connection...")).toBeVisible();
+        // Ant Design Select renders as a combobox role; use that instead of a native placeholder attribute
+        await expect(page.getByRole("combobox").first()).toBeVisible();
     });
 
     test("Scan Schema button is disabled when no connection is selected", async ({ page }) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext, useReducer } from "react";
+import React, { useCallback, useContext, useReducer } from "react";
 import {
     getAllQueryHistory,
     getQueryHistory,
@@ -30,7 +30,7 @@ import { QueryHistoryReducer } from "./reducer";
 export const QueryHistoryProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(QueryHistoryReducer, INITIAL_STATE);
 
-    const getAllHistory = async () => {
+    const getAllHistory = useCallback(async () => {
         dispatch(getHistoryPending());
         try {
             const entries = await getAllQueryHistory();
@@ -39,9 +39,9 @@ export const QueryHistoryProvider = ({ children }: { children: React.ReactNode }
             console.error(error);
             dispatch(getHistoryError());
         }
-    };
+    }, []);
 
-    const getHistoryByConnection = async (connectionId: string) => {
+    const getHistoryByConnection = useCallback(async (connectionId: string) => {
         dispatch(getHistoryPending());
         try {
             const entries = await getQueryHistory(connectionId);
@@ -50,9 +50,9 @@ export const QueryHistoryProvider = ({ children }: { children: React.ReactNode }
             console.error(error);
             dispatch(getHistoryError());
         }
-    };
+    }, []);
 
-    const addEntry = async (request: IAddQueryHistoryRequest) => {
+    const addEntry = useCallback(async (request: IAddQueryHistoryRequest) => {
         dispatch(addEntryPending());
         try {
             await addQueryHistory(request);
@@ -72,9 +72,9 @@ export const QueryHistoryProvider = ({ children }: { children: React.ReactNode }
             console.error(error);
             dispatch(addEntryError());
         }
-    };
+    }, []);
 
-    const deleteEntry = async (entryId: string) => {
+    const deleteEntry = useCallback(async (entryId: string) => {
         dispatch(deleteEntryPending());
         try {
             await deleteQueryHistory(entryId);
@@ -83,7 +83,7 @@ export const QueryHistoryProvider = ({ children }: { children: React.ReactNode }
             console.error(error);
             dispatch(deleteEntryError());
         }
-    };
+    }, []);
 
     return (
         <QueryHistoryStateContext.Provider value={state}>

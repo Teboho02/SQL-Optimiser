@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext, useReducer } from "react";
+import React, { useCallback, useContext, useReducer } from "react";
 import {
     getDatabaseConnections,
     triggerDump as apiTriggerDump,
@@ -28,7 +28,7 @@ import { DatabaseConnectionReducer } from "./reducer";
 export const DatabaseConnectionProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(DatabaseConnectionReducer, INITIAL_STATE);
 
-    const getConnections = async () => {
+    const getConnections = useCallback(async () => {
         dispatch(getConnectionsPending());
         try {
             const connections = await getDatabaseConnections();
@@ -37,13 +37,13 @@ export const DatabaseConnectionProvider = ({ children }: { children: React.React
             console.error(error);
             dispatch(getConnectionsError());
         }
-    };
+    }, []);
 
-    const setSelectedConnectionId = (id: string | null) => {
+    const setSelectedConnectionId = useCallback((id: string | null) => {
         dispatch(setSelectedConnectionIdAction(id));
-    };
+    }, []);
 
-    const triggerDump = async (id: string) => {
+    const triggerDump = useCallback(async (id: string) => {
         dispatch(triggerDumpPending());
         try {
             await apiTriggerDump(id);
@@ -53,9 +53,9 @@ export const DatabaseConnectionProvider = ({ children }: { children: React.React
             console.error(error);
             dispatch(triggerDumpError());
         }
-    };
+    }, []);
 
-    const triggerRestore = async (id: string) => {
+    const triggerRestore = useCallback(async (id: string) => {
         dispatch(triggerRestorePending());
         try {
             await apiTriggerRestore(id);
@@ -65,7 +65,7 @@ export const DatabaseConnectionProvider = ({ children }: { children: React.React
             console.error(error);
             dispatch(triggerRestoreError());
         }
-    };
+    }, []);
 
     return (
         <DatabaseConnectionStateContext.Provider value={state}>

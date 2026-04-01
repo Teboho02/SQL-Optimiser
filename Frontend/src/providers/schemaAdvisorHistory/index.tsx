@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext, useReducer } from "react";
+import React, { useCallback, useContext, useReducer } from "react";
 import {
     getScansByConnection as apiGetScansByConnection,
     addScan as apiAddScan,
@@ -28,7 +28,7 @@ import { SchemaAdvisorHistoryReducer } from "./reducer";
 export const SchemaAdvisorHistoryProvider = ({ children }: { children: React.ReactNode }) => {
     const [state, dispatch] = useReducer(SchemaAdvisorHistoryReducer, INITIAL_STATE);
 
-    const getScansByConnection = async (connectionId: string) => {
+    const getScansByConnection = useCallback(async (connectionId: string) => {
         dispatch(getScansPending());
         try {
             const scans = await apiGetScansByConnection(connectionId);
@@ -37,9 +37,9 @@ export const SchemaAdvisorHistoryProvider = ({ children }: { children: React.Rea
             console.error(error);
             dispatch(getScansError());
         }
-    };
+    }, []);
 
-    const addScan = async (
+    const addScan = useCallback(async (
         connectionId: string,
         recommendationCount: number,
         recommendationsJson: string | null,
@@ -53,9 +53,9 @@ export const SchemaAdvisorHistoryProvider = ({ children }: { children: React.Rea
             console.error(error);
             dispatch(addScanError());
         }
-    };
+    }, []);
 
-    const deleteScan = async (scanId: string) => {
+    const deleteScan = useCallback(async (scanId: string) => {
         dispatch(deleteScanPending());
         try {
             await apiDeleteScan(scanId);
@@ -64,11 +64,11 @@ export const SchemaAdvisorHistoryProvider = ({ children }: { children: React.Rea
             console.error(error);
             dispatch(deleteScanError());
         }
-    };
+    }, []);
 
-    const setActiveScanId = (scanId: string | null) => {
+    const setActiveScanId = useCallback((scanId: string | null) => {
         dispatch(setActiveScanIdAction(scanId));
-    };
+    }, []);
 
     return (
         <SchemaAdvisorHistoryStateContext.Provider value={state}>

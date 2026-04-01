@@ -25,7 +25,7 @@ interface IExecutionInfo {
 }
 
 const IDLE_EXECUTION_INFO: IExecutionInfo = { status: "idle", executionTimeMs: null, queryPlan: null };
-const DEFAULT_SQL = "SELECT * FROM ";
+const DEFAULT_SQL = "";
 
 function msToTimeSpan(ms: number): string {
     const totalSeconds = Math.floor(ms / 1000);
@@ -98,27 +98,33 @@ export default function PlaygroundPage(): React.JSX.Element {
         setQueryError(null);
         setExecutionInfo(IDLE_EXECUTION_INFO);
 
-        const result = await executeQuery({ connectionId: selectedConnectionId, sql: sqlText });
-        setIsRunning(false);
+        try {
+            const result = await executeQuery({ connectionId: selectedConnectionId, sql: sqlText });
 
-        if (result.error) {
-            setQueryError(result.error);
+            if (result.error) {
+                setQueryError(result.error);
+                setExecutionInfo({ status: "error", executionTimeMs: null, queryPlan: null });
+                void addEntry({
+                    databaseConnectionId: selectedConnectionId,
+                    queryText: sqlText,
+                    errorMessage: result.error,
+                    executionTime: "00:00:00.0000000",
+                });
+            } else {
+                setQueryResult({ columns: result.columns, rows: result.rows, rowCount: result.rowsAffected, executionTimeMs: result.executionTimeMs });
+                setExecutionInfo({ status: "success", executionTimeMs: result.executionTimeMs, queryPlan: null });
+                void addEntry({
+                    databaseConnectionId: selectedConnectionId,
+                    queryText: sqlText,
+                    resultSummary: `${result.rowsAffected} rows`,
+                    executionTime: msToTimeSpan(result.executionTimeMs),
+                });
+            }
+        } catch (error) {
+            setQueryError(error instanceof Error ? error.message : "An unexpected error occurred.");
             setExecutionInfo({ status: "error", executionTimeMs: null, queryPlan: null });
-            void addEntry({
-                databaseConnectionId: selectedConnectionId,
-                queryText: sqlText,
-                errorMessage: result.error,
-                executionTime: "00:00:00.0000000",
-            });
-        } else {
-            setQueryResult({ columns: result.columns, rows: result.rows, rowCount: result.rowsAffected, executionTimeMs: result.executionTimeMs });
-            setExecutionInfo({ status: "success", executionTimeMs: result.executionTimeMs, queryPlan: null });
-            void addEntry({
-                databaseConnectionId: selectedConnectionId,
-                queryText: sqlText,
-                resultSummary: `${result.rowsAffected} rows`,
-                executionTime: msToTimeSpan(result.executionTimeMs),
-            });
+        } finally {
+            setIsRunning(false);
         }
     };
 

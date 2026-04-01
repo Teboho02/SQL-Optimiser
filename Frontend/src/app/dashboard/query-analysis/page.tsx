@@ -43,10 +43,15 @@ export default function QueryAnalysisPage(): React.JSX.Element {
         setIsAnalysing(true);
         setAnalysisResult(null);
         setAnalyseError(null);
-        const result = await analyseQuery({ connectionId: selectedConnectionId, sql: sqlText, intent: intentText || undefined });
-        setIsAnalysing(false);
-        if (result.error) setAnalyseError(result.error);
-        else setAnalysisResult(result);
+        try {
+            const result = await analyseQuery({ connectionId: selectedConnectionId, sql: sqlText, intent: intentText || undefined });
+            if (result.error) setAnalyseError(result.error);
+            else setAnalysisResult(result);
+        } catch (error) {
+            setAnalyseError(error instanceof Error ? error.message : "An unexpected error occurred.");
+        } finally {
+            setIsAnalysing(false);
+        }
     };
 
     const handleBenchmark = async (): Promise<void> => {
@@ -54,10 +59,15 @@ export default function QueryAnalysisPage(): React.JSX.Element {
         setIsBenchmarking(true);
         setBenchmarkResult(null);
         setBenchmarkError(null);
-        const result = await benchmarkQuery({ connectionId: selectedConnectionId, originalSql: sqlText, suggestedSql: analysisResult.suggestedQuery });
-        setIsBenchmarking(false);
-        if (result.error) setBenchmarkError(result.error);
-        else setBenchmarkResult(result);
+        try {
+            const result = await benchmarkQuery({ connectionId: selectedConnectionId, originalSql: sqlText, suggestedSql: analysisResult.suggestedQuery });
+            if (result.error) setBenchmarkError(result.error);
+            else setBenchmarkResult(result);
+        } catch (error) {
+            setBenchmarkError(error instanceof Error ? error.message : "An unexpected error occurred.");
+        } finally {
+            setIsBenchmarking(false);
+        }
     };
 
     const handleClear = (): void => {

@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Button, Tooltip } from "antd";
-import { DatabaseOutlined, EditOutlined, CloudDownloadOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Tag, Tooltip } from "antd";
+import { DatabaseOutlined, EditOutlined, CloudDownloadOutlined, ReloadOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { useStyles } from "../style/styles";
 
 /** Connection status values for a database card. */
@@ -32,6 +32,8 @@ export interface IDatabase {
     dumpStatus: number;
     /** Raw restore status enum value (0=None,1=Pending,2=InProgress,3=Completed,4=Failed). */
     restoreStatusRaw: number;
+    /** Whether this connection was configured to dump schema only (no row data). */
+    schemaOnly: boolean;
 }
 
 interface IConnectionCardProps {
@@ -39,12 +41,13 @@ interface IConnectionCardProps {
     onEdit: () => void;
     onDump: () => void;
     onRebuild: () => void;
+    onGenerateData: () => void;
     isDumping: boolean;
     isRebuilding: boolean;
 }
 
 /** Card displaying a single database connection's metadata and status. */
-const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDump, onRebuild, isDumping, isRebuilding }) => {
+const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDump, onRebuild, onGenerateData, isDumping, isRebuilding }) => {
     const { styles } = useStyles();
 
     const dumpBusy = isDumping || database.dumpStatus === 1 || database.dumpStatus === 2;
@@ -79,6 +82,7 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDu
                 <span className={database.isLocalReady ? styles.badgeConnected : styles.badgeDisconnected}>
                     {database.restoreStatus}
                 </span>
+                {database.schemaOnly && <Tag color="blue">Schema Only</Tag>}
             </div>
             <div className={styles.cardActions}>
                 <Tooltip title="Dump — capture a fresh snapshot from the live database">
@@ -103,6 +107,17 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDu
                         Rebuild
                     </Button>
                 </Tooltip>
+                {database.schemaOnly && database.isLocalReady && (
+                    <Tooltip title="Browse tables and generate AI test data for this schema-only database">
+                        <Button
+                            size="small"
+                            icon={<ThunderboltOutlined />}
+                            onClick={onGenerateData}
+                        >
+                            Generate Data
+                        </Button>
+                    </Tooltip>
+                )}
                 <Button type="text" size="small" icon={<EditOutlined />} onClick={onEdit}>Edit</Button>
             </div>
         </div>

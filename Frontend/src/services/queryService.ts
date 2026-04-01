@@ -84,6 +84,74 @@ export async function benchmarkQuery(request: IBenchmarkRequest): Promise<IBench
     return json.result as IBenchmarkResponse;
 }
 
+export interface ISchemaColumn {
+    name: string;
+    dataType: string;
+    isNullable: boolean;
+    isPrimaryKey: boolean;
+    maxLength: number | null;
+    referencesTable: string | null;
+    referencesColumn: string | null;
+}
+
+export interface ISchemaTableDetail {
+    name: string;
+    columns: ISchemaColumn[];
+}
+
+export interface ISchemaRelationship {
+    fromTable: string;
+    fromColumn: string;
+    toTable: string;
+    toColumn: string;
+}
+
+export interface ISchemaWithRelationships {
+    tables: ISchemaTableDetail[];
+    relationships: ISchemaRelationship[];
+}
+
+export interface ITableRowCount {
+    tableName: string;
+    rowCount: number;
+}
+
+export interface IGenerateTestDataRequest {
+    connectionId: string;
+    tables: ITableRowCount[];
+}
+
+export interface IGenerateTestDataResponse {
+    success: boolean;
+    insertedCounts: Record<string, number>;
+    error: string | null;
+}
+
+/** Fetches detailed schema (column types, PK/FK info) and FK relationships for a connection. */
+export async function getSchemaWithRelationships(connectionId: string): Promise<ISchemaWithRelationships> {
+    const url = `${API_CONSTANTS.GET_SCHEMA_WITH_RELATIONSHIPS}?connectionId=${encodeURIComponent(connectionId)}`;
+    const response = await fetch(url, { headers: authHeaders() });
+
+    if (!response.ok) {
+        throw new Error(`Schema fetch failed: ${response.status}`);
+    }
+
+    const json = await response.json();
+    return json.result as ISchemaWithRelationships;
+}
+
+/** Generates and inserts AI-produced test data into the local schema-only database. */
+export async function generateTestData(request: IGenerateTestDataRequest): Promise<IGenerateTestDataResponse> {
+    const response = await fetch(API_CONSTANTS.GENERATE_TEST_DATA, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(request),
+    });
+
+    const json = await response.json();
+    return json.result as IGenerateTestDataResponse;
+}
+
 /** Fetches the schema (tables + columns) for the local copy of the given connection's database. */
 export async function getSchema(connectionId: string): Promise<ISchemaTable[]> {
     const url = `${API_CONSTANTS.GET_SCHEMA}?connectionId=${encodeURIComponent(connectionId)}`;

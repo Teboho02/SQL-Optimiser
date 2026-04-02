@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Button } from "antd";
-import { ArrowRightOutlined, TableOutlined, ThunderboltOutlined, ExperimentOutlined } from "@ant-design/icons";
+import { ArrowRightOutlined, TableOutlined, ExperimentOutlined } from "@ant-design/icons";
 import { useStyles } from "../style/styles";
 
 /** A single column in a schema table. */
@@ -52,8 +52,6 @@ interface IRefactoringPanelProps {
     detail: IRefactoringDetail;
     /** Called when the user clicks Generate Migration. */
     onGenerateMigration: () => void;
-    /** Called when the user clicks Benchmark Query. */
-    onBenchmark: () => void;
     /** Called when the user clicks Compare Schemas. */
     onCompare: () => void;
 }
@@ -84,7 +82,7 @@ const SchemaTableBox: React.FC<{ table: ISchemaTableDef; styles: Record<string, 
 };
 
 /** Right panel showing the schema diff diagram and impact metrics for the selected recommendation. */
-const RefactoringPanel: React.FC<IRefactoringPanelProps> = ({ detail, onGenerateMigration, onBenchmark, onCompare }) => {
+const RefactoringPanel: React.FC<IRefactoringPanelProps> = ({ detail, onGenerateMigration, onCompare }) => {
     const { styles } = useStyles();
 
     return (
@@ -92,7 +90,6 @@ const RefactoringPanel: React.FC<IRefactoringPanelProps> = ({ detail, onGenerate
             <div className={styles.detailHeader}>
                 <h2 className={styles.detailTitle}>{detail.title}</h2>
                 <div style={{ display: "flex", gap: 8 }}>
-                    <Button icon={<ThunderboltOutlined />} onClick={onBenchmark}>Benchmark Query</Button>
                     <Button icon={<ExperimentOutlined />} onClick={onCompare}>Compare Schemas</Button>
                     <Button type="primary" onClick={onGenerateMigration}>Generate Migration</Button>
                 </div>

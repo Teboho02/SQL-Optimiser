@@ -1,60 +1,21 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Spin, Tabs, Table, Tag, Button, Popconfirm, Alert, Typography, Modal } from "antd";
+import { Spin, Table, Tag, Button, Popconfirm, Alert, Typography, Modal, Tabs } from "antd";
 import type { TableProps } from "antd";
 import { RollbackOutlined } from "@ant-design/icons";
 import HistoryHeader from "./HistoryHeader/HistoryHeader";
-import HistoryTable from "./HistoryTable/HistoryTable";
-import HistoryPagination from "./HistoryPagination/HistoryPagination";
-import { IQueryHistoryDto } from "@/services/queryHistoryService";
 import { IMigrationHistoryDto, getAllMigrationHistory, rollbackMigration } from "@/services/migrationHistoryService";
-import { useDatabaseConnectionState, useDatabaseConnectionActions } from "@/providers/databaseConnection";
-import { useQueryHistoryState, useQueryHistoryActions } from "@/providers/queryHistory";
 import { useStyles } from "./style/styles";
 
 const { Text } = Typography;
 
-type HistoryStatus = "success" | "warning" | "critical";
-
-interface IHistoryEntry {
-    id: string;
-    queryPreview: string;
-    database: string;
-    improvement: string | null;
-    status: HistoryStatus;
-    date: string;
-}
-
 const PAGE_SIZE = 6;
 
-function toHistoryEntry(dto: IQueryHistoryDto, connectionMap: Map<string, string>): IHistoryEntry {
-    const connectionName = connectionMap.get(dto.databaseConnectionId) ?? dto.databaseConnectionId.slice(0, 8);
-    const status: HistoryStatus = dto.errorMessage ? "critical" : dto.suggestedQuery ? "warning" : "success";
-    const date = new Date(dto.creationTime).toLocaleString([], {
-        year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
-    });
-    return {
-        id: dto.id.slice(0, 8).toUpperCase(),
-        queryPreview: dto.queryText,
-        database: connectionName,
-        improvement: dto.suggestedQuery ? "Has suggestion" : null,
-        status,
-        date,
-    };
-}
-
-/** Analysis History page — paginated log of query executions and applied schema migrations. */
+/** Applied Migrations history page. */
 export default function HistoryPage(): React.JSX.Element {
     const { styles } = useStyles();
-    const { connections } = useDatabaseConnectionState();
-    const { getConnections } = useDatabaseConnectionActions();
-    const { entries, isPending } = useQueryHistoryState();
-    const { getAllHistory } = useQueryHistoryActions();
 
-    const [currentPage, setCurrentPage] = useState<number>(1);
-
-    // Applied Migrations tab state
     const [migrations, setMigrations] = useState<IMigrationHistoryDto[]>([]);
     const [migrationsLoading, setMigrationsLoading] = useState(false);
     const [rollbackError, setRollbackError] = useState<string | null>(null);
@@ -73,20 +34,8 @@ export default function HistoryPage(): React.JSX.Element {
     }, []);
 
     useEffect(() => {
-        void getConnections();
-        void getAllHistory();
         void loadMigrations();
-    }, [getConnections, getAllHistory, loadMigrations]);
-
-    const connectionMap = new Map<string, string>(connections.map((c) => [c.id, c.name]));
-    const mappedEntries = entries.map((dto) => toHistoryEntry(dto, connectionMap));
-
-    const totalEntries = mappedEntries.length;
-    const totalPages = Math.max(1, Math.ceil(totalEntries / PAGE_SIZE));
-    const safePage = Math.min(currentPage, totalPages);
-    const rangeStart = totalEntries === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-    const rangeEnd = Math.min(safePage * PAGE_SIZE, totalEntries);
-    const pageEntries = mappedEntries.slice(rangeStart - 1, rangeEnd);
+    }, [loadMigrations]);
 
     const handleRollback = async (migrationId: string): Promise<void> => {
         setRollingBackId(migrationId);
@@ -170,11 +119,7 @@ export default function HistoryPage(): React.JSX.Element {
                 record.status === 0 ? (
                     <Popconfirm
                         title="Roll back migration"
-                        description={
-                            <>
-                                <p>This will execute the rollback SQL on the live database.</p>
-                            </>
-                        }
+                        description={<p>This will execute the rollback SQL on the live database.</p>}
                         onConfirm={() => void handleRollback(record.id)}
                         okText="Roll Back"
                         cancelText="Cancel"
@@ -195,36 +140,17 @@ export default function HistoryPage(): React.JSX.Element {
         },
     ];
 
-    const queryHistoryTab = (
+    return (
         <>
-            {isPending && entries.length === 0 ? (
-                <div style={{ display: "flex", justifyContent: "center", paddingTop: 80 }}>
-                    <Spin size="large" />
-                </div>
-            ) : (
-                <>
-                    <HistoryTable entries={pageEntries} />
-                    <HistoryPagination
-                        rangeStart={rangeStart}
-                        rangeEnd={rangeEnd}
-                        totalEntries={totalEntries}
-                        currentPage={safePage}
-                        totalPages={totalPages}
-                        onPageChange={setCurrentPage}
-                    />
-                </>
-            )}
-        </>
-    );
+            <HistoryHeader />
 
-    const migrationsTab = (
-        <>
             {rollbackSuccess && (
                 <Alert type="success" title={rollbackSuccess} closable onClose={() => setRollbackSuccess(null)} style={{ marginBottom: 16 }} />
             )}
             {rollbackError && (
                 <Alert type="error" title={`Rollback failed: ${rollbackError}`} closable onClose={() => setRollbackError(null)} style={{ marginBottom: 16 }} />
             )}
+
             {migrationsLoading ? (
                 <div style={{ display: "flex", justifyContent: "center", paddingTop: 80 }}>
                     <Spin size="large" />
@@ -240,19 +166,6 @@ export default function HistoryPage(): React.JSX.Element {
                     />
                 </div>
             )}
-        </>
-    );
-
-    return (
-        <>
-            <HistoryHeader onFilter={() => {}} onExportCsv={() => {}} />
-            <Tabs
-                defaultActiveKey="queries"
-                items={[
-                    { key: "queries", label: "Query History", children: queryHistoryTab },
-                    { key: "migrations", label: "Applied Migrations", children: migrationsTab },
-                ]}
-            />
 
             <Modal
                 title="Migration SQL"

@@ -143,8 +143,12 @@ jobs:
             } > /opt/team3/.env
 
             # ── Deploy ────────────────────────────────────────────────
+            # Pull new images first, then recreate only the app containers.
+            # localdb is intentionally excluded so its volume (and all
+            # restored databases inside it) survives every redeploy.
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u teboho02 --password-stdin
-            sudo docker compose -f /opt/team3/docker-compose.yml --project-directory /opt/team3 down || true
             sudo docker compose -f /opt/team3/docker-compose.yml --project-directory /opt/team3 pull
-            sudo docker compose -f /opt/team3/docker-compose.yml --project-directory /opt/team3 up -d
+            sudo docker compose -f /opt/team3/docker-compose.yml --project-directory /opt/team3 up -d --force-recreate --no-deps abp_host frontend
+            # Ensure localdb is running in case this is a first-time deploy
+            sudo docker compose -f /opt/team3/docker-compose.yml --project-directory /opt/team3 up -d --no-recreate localdb
             sudo docker image prune -f

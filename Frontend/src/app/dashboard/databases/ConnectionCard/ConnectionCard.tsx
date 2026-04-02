@@ -5,9 +5,6 @@ import { Button, Tag, Tooltip } from "antd";
 import { DatabaseOutlined, CloudDownloadOutlined, ReloadOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { useStyles } from "../style/styles";
 
-/** Connection status values for a database card. */
-export type TConnectionStatus = "connected" | "disconnected";
-
 /** Shape of a single database connection entry. */
 export interface IDatabase {
     /** Unique identifier for the connection. */
@@ -22,8 +19,6 @@ export interface IDatabase {
     host: string;
     /** Measured round-trip latency, or "-" if unavailable. */
     latency: string;
-    /** Whether the connection is currently active. */
-    status: TConnectionStatus;
     /** Human-readable restore status label. */
     restoreStatus: string;
     /** Whether a local copy of the database is ready to query. */
@@ -75,8 +70,8 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onDump, onRe
                 </div>
             </div>
             <div className={styles.cardFooter}>
-                <span className={database.status === "connected" ? styles.badgeConnected : styles.badgeDisconnected}>
-                    {database.status}
+                <span className={styles.badgeConnected}>
+                    Saved
                 </span>
                 <span className={database.isLocalReady ? styles.badgeConnected : styles.badgeDisconnected}>
                     {database.restoreStatus}

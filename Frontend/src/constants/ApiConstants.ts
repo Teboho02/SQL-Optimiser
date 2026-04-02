@@ -18,7 +18,7 @@ export const API_CONSTANTS = {
     BENCHMARK_QUERY: `${API_BASE_URL}/api/services/app/queryExecution/benchmark`,
     SCAN_SCHEMA: `${API_BASE_URL}/api/services/app/schemaAdvisor/scanSchema`,
     GENERATE_MIGRATION: `${API_BASE_URL}/api/services/app/schemaAdvisor/generateMigration`,
-    GET_BENCHMARK_PLAN: `${API_BASE_URL}/api/services/app/schemaAdvisor/getBenchmarkPlan`,
+    GET_BENCHMARK_PLAN: `${API_BASE_URL}/api/services/app/schemaAdvisor/prepareBenchmarkPlan`,
     BENCHMARK_RECOMMENDATION: `${API_BASE_URL}/api/services/app/schemaAdvisor/benchmarkRecommendation`,
     GET_ALL_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/getAllQueryHistory`,
     GET_QUERY_HISTORY: `${API_BASE_URL}/api/services/app/queryHistory/getQueryHistoryByConnectionId`,
@@ -30,4 +30,8 @@ export const API_CONSTANTS = {
     GET_SCHEMA_SCANS_BY_CONNECTION: `${API_BASE_URL}/api/services/app/schemaAdvisorHistory/getScansByConnection`,
     ADD_SCHEMA_SCAN: `${API_BASE_URL}/api/services/app/schemaAdvisorHistory/addScan`,
     DELETE_SCHEMA_SCAN: `${API_BASE_URL}/api/services/app/schemaAdvisorHistory/deleteScan`,
+    APPLY_MIGRATION: `${API_BASE_URL}/api/services/app/schemaAdvisor/applyMigration`,
+    GET_DASHBOARD_STATS: `${API_BASE_URL}/api/services/app/dashboard/getDashboardStats`,
+    GET_MIGRATION_HISTORY: `${API_BASE_URL}/api/services/app/migrationHistory/getAllMigrationHistory`,
+    ROLLBACK_MIGRATION: `${API_BASE_URL}/api/services/app/migrationHistory/rollbackMigration`,
 };

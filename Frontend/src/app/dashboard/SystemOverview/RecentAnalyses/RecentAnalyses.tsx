@@ -1,41 +1,34 @@
 "use client";
 
-import { Table, Tag } from "antd";
+import { Table, Tag, Skeleton } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import React from "react";
 import { useStyles } from "../style/styles";
+import { IRecentActivityItemDto } from "@/services/dashboardService";
 
 interface IAnalysisRow {
     key: string;
-    id: string;
+    shortId: string;
     queryPreview: string;
-    database: string;
-    improvement: string;
-    status: "success" | "warning" | "error";
+    connectionName: string;
+    wasOptimised: boolean;
+    timestamp: string;
 }
 
-const ANALYSES_DATA: IAnalysisRow[] = [
-    { key: "1", id: "ANL-892", queryPreview: "SELECT * FROM users JOIN orders...", database: "prod-main", improvement: "+85%", status: "success" },
-    { key: "2", id: "ANL-891", queryPreview: "UPDATE inventory SET stock = ...", database: "prod-main", improvement: "+12%", status: "success" },
-    { key: "3", id: "ANL-890", queryPreview: "SELECT COUNT(*) FROM events WHERE...", database: "prod-analytics", improvement: "N/A", status: "warning" },
-    { key: "4", id: "ANL-889", queryPreview: "DELETE FROM sessions WHERE...", database: "staging-1", improvement: "+99%", status: "success" },
-];
+interface IRecentAnalysesProps {
+    activity: IRecentActivityItemDto[];
+    loading: boolean;
+}
 
-const STATUS_COLOR: Record<IAnalysisRow["status"], string> = {
-    success: "success",
-    warning: "warning",
-    error: "error",
-};
-
-/** Table listing recent query analyses with ID, preview, database, improvement, and status. */
-const RecentAnalyses: React.FC = () => {
+/** Table listing recent query history with ID, preview, connection, status, and timestamp. */
+const RecentAnalyses: React.FC<IRecentAnalysesProps> = ({ activity, loading }) => {
     const { styles } = useStyles();
 
     const columns: ColumnsType<IAnalysisRow> = [
         {
             title: "ID",
-            dataIndex: "id",
-            key: "id",
+            dataIndex: "shortId",
+            key: "shortId",
             render: (value: string) => <span className={styles.idCell}>{value}</span>,
         },
         {
@@ -45,40 +38,50 @@ const RecentAnalyses: React.FC = () => {
             render: (value: string) => <span className={styles.queryCell}>{value}</span>,
         },
         {
-            title: "Database",
-            dataIndex: "database",
-            key: "database",
-        },
-        {
-            title: "Improvement",
-            dataIndex: "improvement",
-            key: "improvement",
-            render: (value: string) => (
-                <span className={value === "N/A" ? styles.improvementNeutral : styles.improvementPositive}>
-                    {value}
-                </span>
-            ),
+            title: "Connection",
+            dataIndex: "connectionName",
+            key: "connectionName",
         },
         {
             title: "Status",
-            dataIndex: "status",
-            key: "status",
-            render: (value: IAnalysisRow["status"]) => (
-                <Tag color={STATUS_COLOR[value]}>{value}</Tag>
+            dataIndex: "wasOptimised",
+            key: "wasOptimised",
+            render: (value: boolean) => (
+                <Tag color={value ? "success" : "default"}>{value ? "Optimised" : "Executed"}</Tag>
             ),
         },
+        {
+            title: "Time",
+            dataIndex: "timestamp",
+            key: "timestamp",
+        },
     ];
+
+    const data: IAnalysisRow[] = activity.map((item) => ({
+        key: item.id,
+        shortId: item.id.slice(0, 8).toUpperCase(),
+        queryPreview: item.queryPreview,
+        connectionName: item.connectionName,
+        wasOptimised: item.wasOptimised,
+        timestamp: new Date(item.timestamp).toLocaleString(),
+    }));
 
     return (
         <div>
             <h2 className={styles.sectionTitle}>Recent Analyses</h2>
             <div className={styles.tableWrapper}>
-                <Table
-                    columns={columns}
-                    dataSource={ANALYSES_DATA}
-                    pagination={false}
-                    size="middle"
-                />
+                {loading ? (
+                    <div className={styles.skeletonWrapper}>
+                        <Skeleton active paragraph={{ rows: 5 }} />
+                    </div>
+                ) : (
+                    <Table
+                        columns={columns}
+                        dataSource={data}
+                        pagination={false}
+                        size="middle"
+                    />
+                )}
             </div>
         </div>
     );

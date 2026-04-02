@@ -11,6 +11,7 @@ using Abp.Domain.Repositories;
 using Npgsql;
 using OpenAI.Chat;
 using sql_optimizer.Core.Domains.Database;
+using sql_optimizer.Core.Domains.Migration;
 using sql_optimizer.Services.SchemaAdvisorService.DTO;
 
 namespace sql_optimizer.Services.SchemaAdvisorService;
@@ -23,10 +24,14 @@ namespace sql_optimizer.Services.SchemaAdvisorService;
 public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppService
 {
     private readonly IRepository<DatabaseConnection, Guid> _connectionRepository;
+    private readonly IRepository<MigrationHistory, Guid> _migrationHistoryRepository;
 
-    public SchemaAdvisorAppService(IRepository<DatabaseConnection, Guid> connectionRepository)
+    public SchemaAdvisorAppService(
+        IRepository<DatabaseConnection, Guid> connectionRepository,
+        IRepository<MigrationHistory, Guid> migrationHistoryRepository)
     {
         _connectionRepository = connectionRepository;
+        _migrationHistoryRepository = migrationHistoryRepository;
     }
 
     /// <inheritdoc />
@@ -125,23 +130,37 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
         if (string.IsNullOrWhiteSpace(openAiKey))
             return new GenerateMigrationOutput { Error = "OPENAI_KEY environment variable is not configured." };
 
-        var connectionString = await GetLocalConnectionStringAsync(input.ConnectionId);
-        var dbLabel = connectionString is not null ? "the restored local database" : "the target database";
+        const string systemPrompt = """
+            You are an expert PostgreSQL DBA and .NET engineer.
+            Given a schema recommendation, produce THREE artefacts and return ONLY valid JSON (no markdown, no code fences):
 
-        var systemPrompt = $"""
-            You are an expert PostgreSQL DBA. Generate a complete, production-safe migration script for the recommendation below.
-            The script will run against {dbLabel}.
+            1. "migrationSql": a complete, production-safe PostgreSQL migration script.
+               - Wrap all changes in BEGIN / COMMIT.
+               - Use CREATE TABLE IF NOT EXISTS and ALTER TABLE ... ADD COLUMN IF NOT EXISTS where applicable.
+               - Use CREATE INDEX CONCURRENTLY for new indexes (zero-downtime).
+               - Add inline SQL comments explaining each step.
 
-            Requirements:
-            - Use a transaction (BEGIN / COMMIT).
-            - Include a rollback section commented out at the bottom.
-            - Use CREATE TABLE IF NOT EXISTS and ALTER TABLE ... ADD COLUMN IF NOT EXISTS where applicable.
-            - Include CREATE INDEX CONCURRENTLY for new indexes so the migration is online with zero downtime.
-            - Add inline SQL comments explaining each step.
-            - Output ONLY the raw SQL — no markdown, no code fences, no extra explanation.
+            2. "rollbackSql": a complete PostgreSQL script that fully undoes "migrationSql".
+               - Wrap all changes in BEGIN / COMMIT.
+               - Drop any tables, columns, or indexes added by migrationSql.
+               - Restore any dropped or altered structures to their original state.
+               - Add inline SQL comments explaining each step.
+
+            3. "efCoreMigration": a complete EF Core Migration class (C#).
+               - Class name should be derived from the recommendation title (PascalCase, no spaces).
+               - Inherit from Migration.
+               - Implement Up(MigrationBuilder migrationBuilder) and Down(MigrationBuilder migrationBuilder).
+               - Use only standard MigrationBuilder methods (CreateTable, AddColumn, CreateIndex, DropTable, etc.).
+               - Include the using directives at the top.
+               - Output the raw C# class — no markdown, no code fences inside the JSON value.
+
+            Return exactly:
+            {
+              "migrationSql": "<sql>",
+              "rollbackSql": "<sql>",
+              "efCoreMigration": "<csharp>"
+            }
             """;
-
-        var userMessage = $"Recommendation:\n{input.RecommendationJson}";
 
         try
         {
@@ -149,10 +168,19 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
             var response = await chatClient.CompleteChatAsync(
             [
                 new SystemChatMessage(systemPrompt),
-                new UserChatMessage(userMessage),
+                new UserChatMessage($"Recommendation:\n{input.RecommendationJson}"),
             ]);
 
-            return new GenerateMigrationOutput { MigrationSql = response.Value.Content[0].Text };
+            var content = response.Value.Content[0].Text;
+            using var doc = JsonDocument.Parse(content);
+            var root = doc.RootElement;
+
+            return new GenerateMigrationOutput
+            {
+                MigrationSql = root.GetProperty("migrationSql").GetString(),
+                RollbackSql = root.TryGetProperty("rollbackSql", out var rb) ? rb.GetString() : null,
+                EfCoreMigration = root.GetProperty("efCoreMigration").GetString(),
+            };
         }
         catch (Exception ex)
         {
@@ -162,13 +190,87 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
     }
 
     /// <inheritdoc />
-    public async Task<GetBenchmarkPlanOutput> GetBenchmarkPlanAsync(GetBenchmarkPlanInput input)
+    public async Task<ApplyMigrationOutput> ApplyMigrationAsync(ApplyMigrationInput input)
+    {
+        if (string.IsNullOrWhiteSpace(input.MigrationSql))
+            return new ApplyMigrationOutput { Error = "Migration SQL is empty." };
+
+        var connection = await _connectionRepository.GetAsync(input.ConnectionId);
+
+        var liveConnectionString = BuildLiveConnectionString(connection);
+
+        try
+        {
+            await using var conn = new NpgsqlConnection(liveConnectionString);
+            await conn.OpenAsync();
+
+            await using var cmd = new NpgsqlCommand(input.MigrationSql, conn) { CommandTimeout = 120 };
+            await cmd.ExecuteNonQueryAsync();
+
+            // Persist rollback plan so the user can reverse this migration from History
+            var historyRecord = new MigrationHistory
+            {
+                ConnectionId = connection.Id,
+                ConnectionName = connection.Name,
+                RecommendationTitle = input.RecommendationTitle ?? "Unnamed Migration",
+                MigrationSql = input.MigrationSql,
+                RollbackSql = input.RollbackSql ?? string.Empty,
+                Status = MigrationStatus.Applied,
+            };
+            await _migrationHistoryRepository.InsertAsync(historyRecord);
+            await CurrentUnitOfWork.SaveChangesAsync();
+
+            Logger.Info($"[SchemaAdvisor] Migration applied to live database for connection {input.ConnectionId}.");
+            return new ApplyMigrationOutput { Success = true };
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[SchemaAdvisor] ApplyMigration failed for connection {input.ConnectionId}: {ex.Message}", ex);
+            return new ApplyMigrationOutput { Error = ex.Message };
+        }
+    }
+
+    /// <summary>Builds a Npgsql connection string from the saved live database credentials.</summary>
+    private static string BuildLiveConnectionString(DatabaseConnection connection)
+    {
+        var builder = new Npgsql.NpgsqlConnectionStringBuilder
+        {
+            Host = connection.DbHost,
+            Port = connection.DbPort,
+            Username = connection.DbUser,
+            Password = connection.DbPassword,
+            Database = string.IsNullOrWhiteSpace(connection.DatabaseName) ? null : connection.DatabaseName,
+        };
+        return builder.ConnectionString;
+    }
+
+    /// <inheritdoc />
+    public async Task<GetBenchmarkPlanOutput> PrepareBenchmarkPlanAsync(GetBenchmarkPlanInput input)
     {
         var openAiKey = Environment.GetEnvironmentVariable("OPENAI_KEY");
         if (string.IsNullOrWhiteSpace(openAiKey))
             return new GetBenchmarkPlanOutput { Error = "OPENAI_KEY environment variable is not configured." };
 
-        var systemPrompt = """
+        // Fetch generated columns from the live schema so the AI does not try to INSERT into them
+        var generatedColumnsSection = "";
+        var connectionString = await GetLocalConnectionStringAsync(input.ConnectionId);
+        if (connectionString is not null)
+        {
+            var generatedColumns = await FetchGeneratedColumnsAsync(connectionString);
+            if (generatedColumns.Count > 0)
+            {
+                var list = string.Join("\n", generatedColumns.Select(c => $"  - {c.Table}.{c.Column}"));
+                generatedColumnsSection = $"""
+
+
+            CRITICAL — the following columns are GENERATED ALWAYS (computed by the database).
+            Never include them in INSERT or UPDATE column lists — PostgreSQL will reject the statement:
+            {list}
+            """;
+            }
+        }
+
+        var systemPrompt = $$"""
             You are an expert PostgreSQL DBA and query optimiser.
 
             Given a schema recommendation, produce THREE things and return ONLY valid JSON (no markdown, no code fences):
@@ -191,7 +293,7 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
                Write rules:
                - "originalQuery": an INSERT or UPDATE on the CURRENT schema using a small fixed values list or a subquery that inserts ≤5 rows.
                - "adaptedQuery": equivalent write on the NEW schema (may write to multiple tables).
-               - Write queries will be wrapped in savepoints so they are automatically rolled back after timing — do NOT add ROLLBACK yourself.
+               - Write queries will be wrapped in a transaction that is rolled back after timing — do NOT add ROLLBACK yourself.{{generatedColumnsSection}}
 
             Return exactly:
             {
@@ -274,18 +376,14 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
                 {
                     if (pair.QueryType == "write")
                     {
-                        // Wrap each write in a savepoint so it is rolled back immediately
-                        await using var spCmd = new NpgsqlCommand("SAVEPOINT orig_write_sp", conn);
-                        await spCmd.ExecuteNonQueryAsync();
-
+                        // Wrap each write in its own transaction so changes are rolled back
+                        await using var writeTx = await conn.BeginTransactionAsync();
                         var sw = Stopwatch.StartNew();
-                        await using var wCmd = new NpgsqlCommand(pair.OriginalQuery, conn) { CommandTimeout = 30 };
+                        await using var wCmd = new NpgsqlCommand(pair.OriginalQuery, conn, writeTx) { CommandTimeout = 30 };
                         await wCmd.ExecuteNonQueryAsync();
                         sw.Stop();
                         times.Add(sw.ElapsedMilliseconds);
-
-                        await using var rbCmd = new NpgsqlCommand("ROLLBACK TO SAVEPOINT orig_write_sp", conn);
-                        await rbCmd.ExecuteNonQueryAsync();
+                        await writeTx.RollbackAsync();
                     }
                     else
                     {
@@ -297,6 +395,7 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
                         times.Add(sw.ElapsedMilliseconds);
                     }
                 }
+                result.OriginalRunsMs = times.Select(t => (double)t).ToList();
                 result.OriginalAvgMs = times.Average();
             }
             catch (Exception ex)
@@ -345,6 +444,7 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
                             times.Add(sw.ElapsedMilliseconds);
                         }
                     }
+                    result.AdaptedRunsMs = times.Select(t => (double)t).ToList();
                     result.AdaptedAvgMs = times.Average();
                     result.ImprovementPercent = result.OriginalAvgMs > 0
                         ? Math.Round((1.0 - result.AdaptedAvgMs / result.OriginalAvgMs) * 100, 1)
@@ -544,6 +644,33 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
         while (await reader.ReadAsync())
             result.Add((reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)));
 
+        return result;
+    }
+
+    private static async Task<List<(string Table, string Column)>> FetchGeneratedColumnsAsync(string connectionString)
+    {
+        const string sql = """
+            SELECT table_name, column_name
+            FROM information_schema.columns
+            WHERE is_generated = 'ALWAYS'
+              AND table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
+            ORDER BY table_name, column_name;
+            """;
+
+        var result = new List<(string, string)>();
+        try
+        {
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                result.Add((reader.GetString(0), reader.GetString(1)));
+        }
+        catch
+        {
+            // non-fatal — proceed without generated column info
+        }
         return result;
     }
 

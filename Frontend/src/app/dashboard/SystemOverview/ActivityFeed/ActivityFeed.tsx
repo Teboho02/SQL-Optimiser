@@ -1,43 +1,47 @@
 "use client";
 
 import React from "react";
+import { Skeleton } from "antd";
 import { useStyles } from "../style/styles";
+import { IRecentActivityItemDto } from "@/services/dashboardService";
 
-interface IActivityItem {
-    id: number;
-    text: string;
-    time: string;
-    dotColor: string;
+const OPTIMISED_DOT_COLOR = "#4ade80";
+const EXECUTED_DOT_COLOR = "#22d3ee";
+
+interface IActivityFeedProps {
+    activity: IRecentActivityItemDto[];
+    loading: boolean;
 }
 
-const ACTIVITY_ITEMS: IActivityItem[] = [
-    { id: 1, text: "Index idx_user_email created on prod-main", time: "10m ago", dotColor: "#4ade80" },
-    { id: 2, text: "Slow query detected (>5s) on prod-analytics", time: "1h ago", dotColor: "#f87171" },
-    { id: 3, text: "Schema sync completed for staging-1", time: "2h ago", dotColor: "#22d3ee" },
-    { id: 4, text: "New team member invited by Admin", time: "5h ago", dotColor: "#22d3ee" },
-];
-
-/** Timestamped list of recent system events with colored status dots. */
-const ActivityFeed: React.FC = () => {
+/** Timestamped list of recent query activity with colored status dots. */
+const ActivityFeed: React.FC<IActivityFeedProps> = ({ activity, loading }) => {
     const { styles } = useStyles();
 
     return (
         <div>
             <h2 className={styles.sectionTitle}>Activity Feed</h2>
             <div className={styles.activityCard}>
-                {ACTIVITY_ITEMS.map((item) => (
-                    <div key={item.id} className={styles.activityItem}>
-                        <div
-                            className={styles.activityDot}
-                            // sets CSS variable used by the dot class — not a style declaration
-                            style={{ "--dot-color": item.dotColor } as React.CSSProperties}
-                        />
-                        <div>
-                            <p className={styles.activityText}>{item.text}</p>
-                            <p className={styles.activityTime}>{item.time}</p>
+                {loading ? (
+                    <Skeleton active paragraph={{ rows: 5 }} />
+                ) : (
+                    activity.map((item) => (
+                        <div key={item.id} className={styles.activityItem}>
+                            <div
+                                className={styles.activityDot}
+                                // sets CSS variable used by the dot class — not a style declaration
+                                style={{ "--dot-color": item.wasOptimised ? OPTIMISED_DOT_COLOR : EXECUTED_DOT_COLOR } as React.CSSProperties}
+                            />
+                            <div>
+                                <p className={styles.activityText}>
+                                    {item.queryPreview} — <strong>{item.connectionName}</strong>
+                                </p>
+                                <p className={styles.activityTime}>
+                                    {new Date(item.timestamp).toLocaleString()}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
         </div>
     );

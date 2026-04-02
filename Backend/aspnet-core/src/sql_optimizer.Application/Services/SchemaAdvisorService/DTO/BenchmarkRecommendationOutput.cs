@@ -28,6 +28,12 @@ public class QueryPairResult
     public double OriginalAvgMs { get; set; }
     public double AdaptedAvgMs { get; set; }
 
+    /// <summary>Execution time for each run against the original schema, in milliseconds.</summary>
+    public List<double> OriginalRunsMs { get; set; } = new();
+
+    /// <summary>Execution time for each run against the adapted schema, in milliseconds.</summary>
+    public List<double> AdaptedRunsMs { get; set; } = new();
+
     /// <summary>Positive = adapted is faster. Negative = adapted is slower.</summary>
     public double ImprovementPercent { get; set; }
 

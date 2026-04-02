@@ -1,6 +1,7 @@
+using System;
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using System.Data.Common;
 
 namespace sql_optimizer.EntityFrameworkCore;
 

@@ -32,7 +32,7 @@ interface IAbpResponse<T> {
 export async function authenticate(request: IAuthenticateRequest): Promise<IAuthenticateResponse> {
     const response = await fetch(API_CONSTANTS.AUTHENTICATE, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Abp-TenantId": "1" },
         credentials: "include",
         body: JSON.stringify(request),
     });

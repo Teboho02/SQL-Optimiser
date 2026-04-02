@@ -15,6 +15,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import React from "react";
 import { useStyles } from "./style/styles";
+import { logout } from "@/services/authService";
 import { tokenService } from "@/services/tokenService";
 
 const NAV_ITEMS = [
@@ -38,8 +39,10 @@ const DashboardSidebar: React.FC<IDashboardSidebarProps> = ({ onNavClick }) => {
     const router = useRouter();
 
     const handleSignOut = (): void => {
-        tokenService.clear();
-        router.push("/login");
+        void logout().finally(() => {
+            tokenService.clear();
+            router.push("/login");
+        });
     };
 
     const SIGN_OUT_ITEMS = [

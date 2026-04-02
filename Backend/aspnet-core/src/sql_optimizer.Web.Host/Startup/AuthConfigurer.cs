@@ -47,32 +47,39 @@ namespace sql_optimizer.Web.Host.Startup
 
                     options.Events = new JwtBearerEvents
                     {
-                        OnMessageReceived = QueryStringTokenResolver
+                        OnMessageReceived = TokenResolver
                     };
                 });
             }
         }
 
-        /* This method is needed to authorize SignalR javascript client.
-         * SignalR can not send authorization header. So, we are getting it from query string as an encrypted text. */
-        private static Task QueryStringTokenResolver(MessageReceivedContext context)
+        /// <summary>
+        /// Resolves the JWT from either the request cookie (all clients) or the SignalR
+        /// encrypted query-string token (SignalR clients that cannot send headers).
+        /// Cookie-based auth takes priority; the Authorization header is still honoured
+        /// automatically by the JwtBearer middleware when neither source provides a token.
+        /// </summary>
+        private static Task TokenResolver(MessageReceivedContext context)
         {
-            if (!context.HttpContext.Request.Path.HasValue ||
-                !context.HttpContext.Request.Path.Value.StartsWith("/signalr"))
+            // SignalR clients pass the token as an encrypted query-string value.
+            if (context.HttpContext.Request.Path.HasValue &&
+                context.HttpContext.Request.Path.Value.StartsWith("/signalr"))
             {
-                // We are just looking for signalr clients
-                return Task.CompletedTask;
+                var qsAuthToken = context.HttpContext.Request.Query["enc_auth_token"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(qsAuthToken))
+                {
+                    context.Token = SimpleStringCipher.Instance.Decrypt(qsAuthToken);
+                    return Task.CompletedTask;
+                }
             }
 
-            var qsAuthToken = context.HttpContext.Request.Query["enc_auth_token"].FirstOrDefault();
-            if (qsAuthToken == null)
+            // All other clients: read the HttpOnly cookie set by the Authenticate endpoint.
+            var cookieToken = context.HttpContext.Request.Cookies["access_token"];
+            if (!string.IsNullOrEmpty(cookieToken))
             {
-                // Cookie value does not matches to querystring value
-                return Task.CompletedTask;
+                context.Token = cookieToken;
             }
 
-            // Set auth token from cookie
-            context.Token = SimpleStringCipher.Instance.Decrypt(qsAuthToken);
             return Task.CompletedTask;
         }
     }

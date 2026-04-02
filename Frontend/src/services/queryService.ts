@@ -1,5 +1,5 @@
 import { API_CONSTANTS } from "@/constants/ApiConstants";
-import { tokenService } from "./tokenService";
+import { apiFetch } from "@/utils/apiFetch";
 
 export interface IExecuteQueryRequest {
     connectionId: string;
@@ -19,18 +19,15 @@ export interface ISchemaTable {
     columns: string[];
 }
 
-function authHeaders(): HeadersInit {
-    return {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${tokenService.getToken()}`,
-    };
+function jsonHeaders(): HeadersInit {
+    return { "Content-Type": "application/json" };
 }
 
 /** Executes a SQL query against the local copy of the given connection's database. */
 export async function executeQuery(request: IExecuteQueryRequest): Promise<IExecuteQueryResponse> {
-    const response = await fetch(API_CONSTANTS.EXECUTE_QUERY, {
+    const response = await apiFetch(API_CONSTANTS.EXECUTE_QUERY, {
         method: "POST",
-        headers: authHeaders(),
+        headers: jsonHeaders(),
         body: JSON.stringify(request),
     });
 
@@ -47,9 +44,9 @@ export interface IAnalyseQueryResponse {
 
 /** Runs EXPLAIN ANALYZE and asks the AI to suggest an optimised version of the query. */
 export async function analyseQuery(request: IExecuteQueryRequest & { intent?: string }): Promise<IAnalyseQueryResponse> {
-    const response = await fetch(API_CONSTANTS.ANALYSE_QUERY, {
+    const response = await apiFetch(API_CONSTANTS.ANALYSE_QUERY, {
         method: "POST",
-        headers: authHeaders(),
+        headers: jsonHeaders(),
         body: JSON.stringify(request),
     });
 
@@ -74,9 +71,9 @@ export interface IBenchmarkResponse {
 
 /** Runs both the original and AI-suggested queries N times each and returns averaged timings. */
 export async function benchmarkQuery(request: IBenchmarkRequest): Promise<IBenchmarkResponse> {
-    const response = await fetch(API_CONSTANTS.BENCHMARK_QUERY, {
+    const response = await apiFetch(API_CONSTANTS.BENCHMARK_QUERY, {
         method: "POST",
-        headers: authHeaders(),
+        headers: jsonHeaders(),
         body: JSON.stringify(request),
     });
 
@@ -130,7 +127,7 @@ export interface IGenerateTestDataResponse {
 /** Fetches detailed schema (column types, PK/FK info) and FK relationships for a connection. */
 export async function getSchemaWithRelationships(connectionId: string): Promise<ISchemaWithRelationships> {
     const url = `${API_CONSTANTS.GET_SCHEMA_WITH_RELATIONSHIPS}?connectionId=${encodeURIComponent(connectionId)}`;
-    const response = await fetch(url, { headers: authHeaders() });
+    const response = await apiFetch(url);
 
     if (!response.ok) {
         throw new Error(`Schema fetch failed: ${response.status}`);
@@ -142,9 +139,9 @@ export async function getSchemaWithRelationships(connectionId: string): Promise<
 
 /** Generates and inserts AI-produced test data into the local schema-only database. */
 export async function generateTestData(request: IGenerateTestDataRequest): Promise<IGenerateTestDataResponse> {
-    const response = await fetch(API_CONSTANTS.GENERATE_TEST_DATA, {
+    const response = await apiFetch(API_CONSTANTS.GENERATE_TEST_DATA, {
         method: "POST",
-        headers: authHeaders(),
+        headers: jsonHeaders(),
         body: JSON.stringify(request),
     });
 
@@ -155,10 +152,7 @@ export async function generateTestData(request: IGenerateTestDataRequest): Promi
 /** Fetches the schema (tables + columns) for the local copy of the given connection's database. */
 export async function getSchema(connectionId: string): Promise<ISchemaTable[]> {
     const url = `${API_CONSTANTS.GET_SCHEMA}?connectionId=${encodeURIComponent(connectionId)}`;
-    const response = await fetch(url, {
-        method: "GET",
-        headers: authHeaders(),
-    });
+    const response = await apiFetch(url);
 
     if (!response.ok) {
         throw new Error(`Schema fetch failed: ${response.status}`);

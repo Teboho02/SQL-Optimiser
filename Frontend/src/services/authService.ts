@@ -25,11 +25,15 @@ interface IAbpResponse<T> {
     error: IAbpError | null;
 }
 
-/** Authenticates a user against the ABP TokenAuth endpoint and returns the JWT result. */
+/**
+ * Authenticates a user against the ABP TokenAuth endpoint.
+ * The backend sets an HttpOnly access_token cookie and a readable user_id cookie on success.
+ */
 export async function authenticate(request: IAuthenticateRequest): Promise<IAuthenticateResponse> {
     const response = await fetch(API_CONSTANTS.AUTHENTICATE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(request),
     });
 
@@ -40,4 +44,12 @@ export async function authenticate(request: IAuthenticateRequest): Promise<IAuth
     }
 
     return data.result;
+}
+
+/** Calls the backend logout endpoint, which clears the auth cookies server-side. */
+export async function logout(): Promise<void> {
+    await fetch(API_CONSTANTS.LOGOUT, {
+        method: "POST",
+        credentials: "include",
+    });
 }

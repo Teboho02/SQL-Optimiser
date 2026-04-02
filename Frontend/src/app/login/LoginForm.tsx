@@ -51,16 +51,16 @@ const LoginForm: React.FC = () => {
                 requiredMark={false}
             >
                 <Form.Item
-                    label="Email Address"
+                    label="Username"
                     name="userNameOrEmailAddress"
                     rules={[
-                        { required: true, message: "Please enter your email address." },
+                        { required: true, message: "Please enter your username." },
                     ]}
                 >
                     <Input
-                        placeholder="engineer@company.com"
+                        placeholder="your username"
                         size="large"
-                        autoComplete="email"
+                        autoComplete="username"
                     />
                 </Form.Item>
 

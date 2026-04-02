@@ -8,7 +8,6 @@ import { useStyles } from "../style/styles";
 interface IConnectionCardListProps {
     databases: IDatabase[];
     isLoading: boolean;
-    onEdit: (id: string) => void;
     onDump: (id: string) => void;
     onRebuild: (id: string) => void;
     onGenerateData: (id: string) => void;
@@ -17,7 +16,7 @@ interface IConnectionCardListProps {
 }
 
 /** Grid of all registered database connection cards. */
-const ConnectionCardList: React.FC<IConnectionCardListProps> = ({ databases, isLoading, onEdit, onDump, onRebuild, onGenerateData, dumpingIds, rebuildingIds }) => {
+const ConnectionCardList: React.FC<IConnectionCardListProps> = ({ databases, isLoading, onDump, onRebuild, onGenerateData, dumpingIds, rebuildingIds }) => {
     const { styles } = useStyles();
 
     if (isLoading) {
@@ -40,7 +39,6 @@ const ConnectionCardList: React.FC<IConnectionCardListProps> = ({ databases, isL
                 <ConnectionCard
                     key={database.id}
                     database={database}
-                    onEdit={() => onEdit(database.id)}
                     onDump={() => onDump(database.id)}
                     onRebuild={() => onRebuild(database.id)}
                     onGenerateData={() => onGenerateData(database.id)}

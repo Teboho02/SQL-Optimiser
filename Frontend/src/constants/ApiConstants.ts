@@ -6,6 +6,7 @@ const API_BASE_URL: string = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export const API_CONSTANTS = {
     AUTHENTICATE: `${API_BASE_URL}/api/TokenAuth/Authenticate`,
+    REGISTER: `${API_BASE_URL}/api/services/app/Account/Register`,
     TEST_CONNECTION: `${API_BASE_URL}/api/services/app/databaseConnection/testConnection`,
     SAVE_CONNECTION: `${API_BASE_URL}/api/services/app/databaseConnection/saveConnection`,
     GET_ALL_CONNECTIONS: `${API_BASE_URL}/api/services/app/databaseConnection/getAll`,

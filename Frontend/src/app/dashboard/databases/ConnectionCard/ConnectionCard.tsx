@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Button, Tag, Tooltip } from "antd";
-import { DatabaseOutlined, EditOutlined, CloudDownloadOutlined, ReloadOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import { DatabaseOutlined, CloudDownloadOutlined, ReloadOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { useStyles } from "../style/styles";
 
 /** Connection status values for a database card. */
@@ -38,7 +38,6 @@ export interface IDatabase {
 
 interface IConnectionCardProps {
     database: IDatabase;
-    onEdit: () => void;
     onDump: () => void;
     onRebuild: () => void;
     onGenerateData: () => void;
@@ -47,7 +46,7 @@ interface IConnectionCardProps {
 }
 
 /** Card displaying a single database connection's metadata and status. */
-const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDump, onRebuild, onGenerateData, isDumping, isRebuilding }) => {
+const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onDump, onRebuild, onGenerateData, isDumping, isRebuilding }) => {
     const { styles } = useStyles();
 
     const dumpBusy = isDumping || database.dumpStatus === 1 || database.dumpStatus === 2;
@@ -118,7 +117,6 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDu
                         </Button>
                     </Tooltip>
                 )}
-                <Button type="text" size="small" icon={<EditOutlined />} onClick={onEdit}>Edit</Button>
             </div>
         </div>
     );

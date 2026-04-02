@@ -28,6 +28,8 @@ const DatabaseCards: React.FC<IDatabaseCardsProps> = ({
 }) => {
     const { styles } = useStyles();
 
+    const showImprovement = averageImprovementPercent !== null;
+
     if (loading) {
         return (
             <div className={styles.cardsRow}>
@@ -39,10 +41,6 @@ const DatabaseCards: React.FC<IDatabaseCardsProps> = ({
             </div>
         );
     }
-
-    const improvementDisplay = averageImprovementPercent !== null
-        ? `${averageImprovementPercent}%`
-        : "N/A";
 
     return (
         <div className={styles.cardsRow}>
@@ -82,17 +80,19 @@ const DatabaseCards: React.FC<IDatabaseCardsProps> = ({
                 </div>
             </div>
 
-            <div className={styles.statCard}>
-                <div className={styles.statCardHeader}>
-                    <span className={styles.statCardName}>
-                        <RiseOutlined className={styles.statCardIcon} />
-                        Avg Improvement
-                    </span>
+            {showImprovement && (
+                <div className={styles.statCard}>
+                    <div className={styles.statCardHeader}>
+                        <span className={styles.statCardName}>
+                            <RiseOutlined className={styles.statCardIcon} />
+                            Avg Improvement
+                        </span>
+                    </div>
+                    <div className={styles.statValueFormatted}>
+                        {averageImprovementPercent}%
+                    </div>
                 </div>
-                <div className={styles.statValueFormatted}>
-                    {improvementDisplay}
-                </div>
-            </div>
+            )}
         </div>
     );
 };

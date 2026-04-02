@@ -173,7 +173,6 @@ export default function HistoryPage(): React.JSX.Element {
                         description={
                             <>
                                 <p>This will execute the rollback SQL on the live database.</p>
-                                <p>Ensure you have a backup before proceeding.</p>
                             </>
                         }
                         onConfirm={() => void handleRollback(record.id)}

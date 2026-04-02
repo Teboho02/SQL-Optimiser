@@ -5,7 +5,6 @@ import { message } from "antd";
 import DatabasesHeader from "./DatabasesHeader/DatabasesHeader";
 import ConnectionCardList from "./ConnectionCardList/ConnectionCardList";
 import AddConnectionForm from "./AddConnectionForm/AddConnectionForm";
-import EditConnectionModal from "./EditConnectionModal/EditConnectionModal";
 import DataGeneratorDrawer from "./DataGeneratorDrawer/DataGeneratorDrawer";
 import { IDatabaseConnectionDto, DATABASE_ENGINE_NAMES, RESTORE_STATUS_LABELS } from "@/services/databaseConnectionService";
 import { useDatabaseConnectionState, useDatabaseConnectionActions } from "@/providers/databaseConnection";
@@ -39,7 +38,6 @@ export default function DatabasesPage(): React.JSX.Element {
     const { connections, isPending } = useDatabaseConnectionState();
     const { getConnections, triggerDump, triggerRestore } = useDatabaseConnectionActions();
 
-    const [editingConnection, setEditingConnection] = useState<IDatabaseConnectionDto | null>(null);
     const [dataGenConnectionId, setDataGenConnectionId] = useState<string | null>(null);
     const [dumpingIds, setDumpingIds] = useState<Set<string>>(new Set());
     const [rebuildingIds, setRebuildingIds] = useState<Set<string>>(new Set());
@@ -68,15 +66,6 @@ export default function DatabasesPage(): React.JSX.Element {
             startPolling();
         }
     }, [connections, startPolling]);
-
-    const handleEdit = (id: string): void => {
-        setEditingConnection(connections.find((c) => c.id === id) ?? null);
-    };
-
-    const handleEditSaved = (): void => {
-        setEditingConnection(null);
-        void getConnections();
-    };
 
     const handleDump = async (id: string): Promise<void> => {
         setDumpingIds((prev) => new Set(prev).add(id));
@@ -110,7 +99,6 @@ export default function DatabasesPage(): React.JSX.Element {
             <ConnectionCardList
                 databases={connections.map(mapToDatabase)}
                 isLoading={isPending && connections.length === 0}
-                onEdit={handleEdit}
                 onDump={handleDump}
                 onRebuild={handleRebuild}
                 onGenerateData={(id) => setDataGenConnectionId(id)}
@@ -118,11 +106,6 @@ export default function DatabasesPage(): React.JSX.Element {
                 rebuildingIds={rebuildingIds}
             />
             <AddConnectionForm onSaved={() => void getConnections()} />
-            <EditConnectionModal
-                connection={editingConnection}
-                onClose={() => setEditingConnection(null)}
-                onSaved={handleEditSaved}
-            />
             <DataGeneratorDrawer
                 connectionId={dataGenConnectionId}
                 connectionName={connections.find((c) => c.id === dataGenConnectionId)?.name ?? ""}

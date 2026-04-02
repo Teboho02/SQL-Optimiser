@@ -18,6 +18,7 @@ function mapToDatabase(dto: IDatabaseConnectionDto): IDatabase {
         version: 0,
         host: dto.dbHost,
         latency: "-",
+        lastSyncTime: dto.lastSyncTime ?? null,
         restoreStatus: RESTORE_STATUS_LABELS[dto.restoreStatus] ?? "Unknown",
         isLocalReady: dto.restoreStatus === 3,
         dumpStatus: dto.dumpStatus,

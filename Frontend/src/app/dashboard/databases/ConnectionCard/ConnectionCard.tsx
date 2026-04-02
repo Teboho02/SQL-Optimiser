@@ -19,6 +19,8 @@ export interface IDatabase {
     host: string;
     /** Measured round-trip latency, or "-" if unavailable. */
     latency: string;
+    /** ISO timestamp of the last sync, or null if never synced. */
+    lastSyncTime: string | null;
     /** Human-readable restore status label. */
     restoreStatus: string;
     /** Whether a local copy of the database is ready to query. */
@@ -61,8 +63,12 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onDump, onRe
             </div>
             <div className={styles.cardMeta}>
                 <div className={styles.cardMetaRow}>
-                    <span className={styles.cardMetaLabel}>Host</span>
-                    <span className={styles.cardMetaValue}>{database.host}</span>
+                    <span className={styles.cardMetaLabel}>Last Synced</span>
+                    <span className={styles.cardMetaValue}>
+                        {database.lastSyncTime
+                            ? new Date(database.lastSyncTime).toLocaleString()
+                            : "Never"}
+                    </span>
                 </div>
                 <div className={styles.cardMetaRow}>
                     <span className={styles.cardMetaLabel}>Latency</span>

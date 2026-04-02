@@ -1,5 +1,5 @@
 import { API_CONSTANTS } from "@/constants/ApiConstants";
-import { tokenService } from "./tokenService";
+import { apiFetch } from "@/utils/apiFetch";
 
 export interface IQueryHistoryDto {
     id: string;
@@ -21,19 +21,9 @@ export interface IAddQueryHistoryRequest {
     executionTime: string;
 }
 
-function authHeaders(): HeadersInit {
-    return {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${tokenService.getToken()}`,
-    };
-}
-
 /** Fetches all query history across every connection, ordered newest-first. */
 export async function getAllQueryHistory(): Promise<IQueryHistoryDto[]> {
-    const response = await fetch(API_CONSTANTS.GET_ALL_QUERY_HISTORY, {
-        method: "GET",
-        headers: authHeaders(),
-    });
+    const response = await apiFetch(API_CONSTANTS.GET_ALL_QUERY_HISTORY);
     const json = await response.json();
     return (json.result ?? []) as IQueryHistoryDto[];
 }
@@ -41,16 +31,16 @@ export async function getAllQueryHistory(): Promise<IQueryHistoryDto[]> {
 /** Fetches query history for a given connection, ordered newest-first. */
 export async function getQueryHistory(connectionId: string): Promise<IQueryHistoryDto[]> {
     const url = `${API_CONSTANTS.GET_QUERY_HISTORY}?connectionId=${encodeURIComponent(connectionId)}`;
-    const response = await fetch(url, { method: "GET", headers: authHeaders() });
+    const response = await apiFetch(url);
     const json = await response.json();
     return (json.result ?? []) as IQueryHistoryDto[];
 }
 
 /** Saves a new query history entry. */
 export async function addQueryHistory(entry: IAddQueryHistoryRequest): Promise<void> {
-    await fetch(API_CONSTANTS.ADD_QUERY_HISTORY, {
+    await apiFetch(API_CONSTANTS.ADD_QUERY_HISTORY, {
         method: "POST",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(entry),
     });
 }
@@ -58,5 +48,5 @@ export async function addQueryHistory(entry: IAddQueryHistoryRequest): Promise<v
 /** Deletes a single query history entry by ID. */
 export async function deleteQueryHistory(entryId: string): Promise<void> {
     const url = `${API_CONSTANTS.DELETE_QUERY_HISTORY}?entryId=${encodeURIComponent(entryId)}`;
-    await fetch(url, { method: "DELETE", headers: authHeaders() });
+    await apiFetch(url, { method: "DELETE" });
 }

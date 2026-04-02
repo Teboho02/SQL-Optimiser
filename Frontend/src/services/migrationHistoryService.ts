@@ -1,5 +1,5 @@
 import { API_CONSTANTS } from "@/constants/ApiConstants";
-import { tokenService } from "./tokenService";
+import { apiFetch } from "@/utils/apiFetch";
 
 export type MigrationStatus = "Applied" | "RolledBack";
 
@@ -20,11 +20,8 @@ export interface IRollbackMigrationOutput {
     error: string | null;
 }
 
-function authHeaders(): HeadersInit {
-    return {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${tokenService.getToken()}`,
-    };
+function jsonHeaders(): HeadersInit {
+    return { "Content-Type": "application/json" };
 }
 
 async function safeJson(response: Response): Promise<Record<string, unknown> | null> {
@@ -38,19 +35,16 @@ async function safeJson(response: Response): Promise<Record<string, unknown> | n
 }
 
 export async function getAllMigrationHistory(): Promise<IMigrationHistoryDto[]> {
-    const response = await fetch(API_CONSTANTS.GET_MIGRATION_HISTORY, {
-        method: "GET",
-        headers: authHeaders(),
-    });
+    const response = await apiFetch(API_CONSTANTS.GET_MIGRATION_HISTORY);
     const json = await safeJson(response);
     if (!response.ok) return [];
     return (json?.result as IMigrationHistoryDto[]) ?? [];
 }
 
 export async function rollbackMigration(migrationHistoryId: string): Promise<IRollbackMigrationOutput> {
-    const response = await fetch(API_CONSTANTS.ROLLBACK_MIGRATION, {
+    const response = await apiFetch(API_CONSTANTS.ROLLBACK_MIGRATION, {
         method: "POST",
-        headers: authHeaders(),
+        headers: jsonHeaders(),
         body: JSON.stringify({ migrationHistoryId }),
     });
     const json = await safeJson(response);

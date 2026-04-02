@@ -7,6 +7,7 @@ using sql_optimizer.Authorization;
 using sql_optimizer.Authorization.Users;
 using sql_optimizer.Models.TokenAuth;
 using sql_optimizer.MultiTenancy;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -48,6 +49,8 @@ namespace sql_optimizer.Controllers
 
             var accessToken = CreateAccessToken(CreateJwtClaims(loginResult.Identity));
 
+            AppendAuthCookies(accessToken, loginResult.User.Id);
+
             return new AuthenticateResultModel
             {
                 AccessToken = accessToken,
@@ -55,6 +58,15 @@ namespace sql_optimizer.Controllers
                 ExpireInSeconds = (int)_configuration.Expiration.TotalSeconds,
                 UserId = loginResult.User.Id
             };
+        }
+
+        /// <summary>Clears the auth cookies, effectively logging the user out.</summary>
+        [HttpPost]
+        public IActionResult Logout()
+        {
+            Response.Cookies.Delete("access_token");
+            Response.Cookies.Delete("user_id");
+            return Ok();
         }
 
         private string GetTenancyNameOrNull()
@@ -115,6 +127,38 @@ namespace sql_optimizer.Controllers
         private string GetEncryptedAccessToken(string accessToken)
         {
             return SimpleStringCipher.Instance.Encrypt(accessToken);
+        }
+
+        /// <summary>
+        /// Sets the HttpOnly access_token cookie and a readable user_id cookie on the response.
+        /// The access_token is HttpOnly so JS cannot read it; user_id is readable so the
+        /// frontend can detect authenticated state without exposing the token itself.
+        /// </summary>
+        private void AppendAuthCookies(string accessToken, long userId)
+        {
+            var expiry = DateTimeOffset.UtcNow.Add(_configuration.Expiration);
+            var isHttps = Request.IsHttps;
+
+            var tokenCookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax,
+                Secure = isHttps,
+                Expires = expiry,
+                Path = "/",
+            };
+
+            var userIdCookieOptions = new CookieOptions
+            {
+                HttpOnly = false,
+                SameSite = SameSiteMode.Lax,
+                Secure = isHttps,
+                Expires = expiry,
+                Path = "/",
+            };
+
+            Response.Cookies.Append("access_token", accessToken, tokenCookieOptions);
+            Response.Cookies.Append("user_id", userId.ToString(), userIdCookieOptions);
         }
     }
 }

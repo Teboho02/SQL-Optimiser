@@ -1,5 +1,5 @@
 import { API_CONSTANTS } from "@/constants/ApiConstants";
-import { tokenService } from "./tokenService";
+import { apiFetch } from "@/utils/apiFetch";
 
 export interface ISchemaColumnDto {
     name: string;
@@ -81,11 +81,8 @@ export interface IBenchmarkRecommendationOutput {
     error: string | null;
 }
 
-function authHeaders(): HeadersInit {
-    return {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${tokenService.getToken()}`,
-    };
+function jsonHeaders(): HeadersInit {
+    return { "Content-Type": "application/json" };
 }
 
 /** Safely reads and parses a response body, returning null if the body is empty or not valid JSON. */
@@ -103,9 +100,9 @@ async function safeJson(response: Response): Promise<Record<string, unknown> | n
 
 /** Scans the schema for the given connection and returns AI recommendations. */
 export async function scanSchema(connectionId: string): Promise<IScanSchemaOutput> {
-    const response = await fetch(API_CONSTANTS.SCAN_SCHEMA, {
+    const response = await apiFetch(API_CONSTANTS.SCAN_SCHEMA, {
         method: "POST",
-        headers: authHeaders(),
+        headers: jsonHeaders(),
         body: JSON.stringify({ connectionId }),
     });
 
@@ -124,9 +121,9 @@ export async function getBenchmarkPlan(
     connectionId: string,
     recommendation: IRecommendationDto,
 ): Promise<IGetBenchmarkPlanOutput> {
-    const response = await fetch(API_CONSTANTS.GET_BENCHMARK_PLAN, {
+    const response = await apiFetch(API_CONSTANTS.GET_BENCHMARK_PLAN, {
         method: "POST",
-        headers: authHeaders(),
+        headers: jsonHeaders(),
         body: JSON.stringify({ connectionId, recommendationJson: JSON.stringify(recommendation) }),
     });
     const json = await safeJson(response);
@@ -145,9 +142,9 @@ export async function benchmarkRecommendation(
     readRatio: number,
     runs = 3,
 ): Promise<IBenchmarkRecommendationOutput> {
-    const response = await fetch(API_CONSTANTS.BENCHMARK_RECOMMENDATION, {
+    const response = await apiFetch(API_CONSTANTS.BENCHMARK_RECOMMENDATION, {
         method: "POST",
-        headers: authHeaders(),
+        headers: jsonHeaders(),
         body: JSON.stringify({ connectionId, benchmarkDdl, queryPairs, readRatio, runs }),
     });
     const json = await safeJson(response);
@@ -165,9 +162,9 @@ export async function applyMigration(
     rollbackSql: string | null,
     recommendationTitle: string,
 ): Promise<IApplyMigrationOutput> {
-    const response = await fetch(API_CONSTANTS.APPLY_MIGRATION, {
+    const response = await apiFetch(API_CONSTANTS.APPLY_MIGRATION, {
         method: "POST",
-        headers: authHeaders(),
+        headers: jsonHeaders(),
         body: JSON.stringify({ connectionId, migrationSql, rollbackSql, recommendationTitle }),
     });
     const json = await safeJson(response);
@@ -180,9 +177,9 @@ export async function applyMigration(
 
 /** Generates a PostgreSQL migration script and an EF Core migration class for the supplied recommendation. */
 export async function generateMigration(connectionId: string, recommendation: IRecommendationDto): Promise<IGenerateMigrationOutput> {
-    const response = await fetch(API_CONSTANTS.GENERATE_MIGRATION, {
+    const response = await apiFetch(API_CONSTANTS.GENERATE_MIGRATION, {
         method: "POST",
-        headers: authHeaders(),
+        headers: jsonHeaders(),
         body: JSON.stringify({
             connectionId,
             recommendationJson: JSON.stringify(recommendation),

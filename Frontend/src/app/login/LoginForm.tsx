@@ -2,7 +2,7 @@
 
 import { Button, Checkbox, Form, Input, message } from "antd";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { authenticate } from "@/services/authService";
 import { tokenService } from "@/services/tokenService";
 import { useStyles } from "./style/styles";
@@ -19,6 +19,12 @@ const LoginForm: React.FC = () => {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [messageApi, contextHolder] = message.useMessage();
+
+    useEffect(() => {
+        if (tokenService.isAuthenticated()) {
+            void router.replace("/dashboard");
+        }
+    }, [router]);
 
     const handleSubmit = async (values: ILoginFormValues): Promise<void> => {
         setIsLoading(true);

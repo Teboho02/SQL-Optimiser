@@ -270,15 +270,8 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
     /// <summary>Builds a Npgsql connection string from the saved live database credentials.</summary>
     private static string BuildLiveConnectionString(DatabaseConnection connection)
     {
-        var builder = new Npgsql.NpgsqlConnectionStringBuilder
-        {
-            Host = connection.DbHost,
-            Port = connection.DbPort,
-            Username = connection.DbUser,
-            Password = connection.DbPassword,
-            Database = string.IsNullOrWhiteSpace(connection.DatabaseName) ? null : connection.DatabaseName,
-        };
-        return builder.ConnectionString;
+        var database = string.IsNullOrWhiteSpace(connection.DatabaseName) ? null : connection.DatabaseName;
+        return $"Host={connection.DbHost};Port={connection.DbPort};Database={database};Username={connection.DbUser};Password={connection.DbPassword};SSL Mode=Require;Trust Server Certificate=true;";
     }
 
     /// <inheritdoc />

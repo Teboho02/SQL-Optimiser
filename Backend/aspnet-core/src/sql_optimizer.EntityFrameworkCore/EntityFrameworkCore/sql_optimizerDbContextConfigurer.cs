@@ -1,4 +1,3 @@
-using System;
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -9,11 +8,7 @@ public static class sql_optimizerDbContextConfigurer
 {
     public static void Configure(DbContextOptionsBuilder<sql_optimizerDbContext> builder, string connectionString)
     {
-        builder.UseNpgsql(connectionString, npgsqlOptions =>
-        {
-            // Retry up to 3 times on transient failures (e.g. stale pooled connections timing out)
-            npgsqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null);
-        });
+        builder.UseNpgsql(connectionString);
         builder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
     }
 

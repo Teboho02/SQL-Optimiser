@@ -241,8 +241,24 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
             await using var conn = new NpgsqlConnection(liveConnectionString);
             await conn.OpenAsync();
 
-            await using var cmd = new NpgsqlCommand(input.MigrationSql, conn) { CommandTimeout = 120 };
-            await cmd.ExecuteNonQueryAsync();
+            // Split into individual statements and strip any explicit transaction wrappers.
+            // CREATE INDEX CONCURRENTLY cannot run inside a transaction block, so each
+            // statement is executed separately in auto-commit mode.
+            var statements = input.MigrationSql
+                .Split(';')
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Where(s => !s.Equals("BEGIN", StringComparison.OrdinalIgnoreCase)
+                         && !s.Equals("BEGIN TRANSACTION", StringComparison.OrdinalIgnoreCase)
+                         && !s.Equals("COMMIT", StringComparison.OrdinalIgnoreCase)
+                         && !s.Equals("ROLLBACK", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var statement in statements)
+            {
+                await using var cmd = new NpgsqlCommand(statement, conn) { CommandTimeout = 120 };
+                await cmd.ExecuteNonQueryAsync();
+            }
 
             // Persist rollback plan so the user can reverse this migration from History
             var historyRecord = new MigrationHistory

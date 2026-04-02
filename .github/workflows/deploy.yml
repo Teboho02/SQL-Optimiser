@@ -128,7 +128,7 @@ jobs:
             # ── Write env file ────────────────────────────────────────
             {
               printf 'ASPNETCORE_ENVIRONMENT=Production\n'
-              printf 'ConnectionStrings__Default=Host=${{ secrets.DB_HOST }};Port=5432;Database=${{ secrets.DB_NAME }};Username=${{ secrets.DB_USER }};Password=${{ secrets.DB_PASSWORD }};SSL Mode=Require;\n'
+              printf 'ConnectionStrings__Default=Host=${{ secrets.DB_HOST }};Port=5432;Database=${{ secrets.DB_NAME }};Username=${{ secrets.DB_USER }};Password=${{ secrets.DB_PASSWORD }};SSL Mode=Require;Keepalive=30;Connection Idle Lifetime=300;\n'
               printf 'Authentication__JwtBearer__SecurityKey=%s\n' '${{ secrets.JWT_SECURITY_KEY }}'
               printf 'Authentication__JwtBearer__Issuer=Team3\n'
               printf 'Authentication__JwtBearer__Audience=Team3\n'

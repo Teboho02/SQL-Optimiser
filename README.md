@@ -289,4 +289,4 @@ AI was used as a **development assistant** to:
 
 ## [Wireframes](https://www.figma.com/design/J0RQDF96WhqvRMvOKPmGAk/Untitled?node-id=0-1&p=f&t=GGY92gIAOiDAybvU-0)
 
-## [Domain Model](https://drive.google.com/file/d/1Wsbk6MD8gc6VKeSFTmFPhKKgORauUpjd/view?usp=sharing)
+## [Domain Model](https://drive.google.com/file/d/10Y_oLIGnPNMjF1zuYLsAgjpafgSxer0R/view?usp=sharing)

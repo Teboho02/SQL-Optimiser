@@ -1,0 +1,122 @@
+<mxfile host="app.diagrams.net" version="29.6.3">
+  <diagram name="SQL Optimiser Domain Model" id="sqlOptDomainModel">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1400" pageHeight="1050" background="none" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="user" parent="1" value="User (ABP)" vertex="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#dae8fc;strokeColor=#000000;whiteSpace=wrap;html=1;">
+          <mxGeometry x="490" y="30" width="220" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="user_attr" parent="user" value="userName : string&lt;br&gt;emailAddress : string&lt;br&gt;passwordHash : string&lt;br&gt;isActive : boolean&lt;br&gt;tenantId : int?&lt;br&gt;creationTime : datetime" vertex="1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=6;whiteSpace=wrap;html=1;">
+          <mxGeometry y="26" width="220" height="144" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dbconn" parent="1" value="DatabaseConnection" vertex="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#ffffff;strokeColor=#000000;whiteSpace=wrap;html=1;">
+          <mxGeometry x="360" y="260" width="260" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="dbconn_attr" parent="dbconn" value="name : string&lt;br&gt;dbHost : string&lt;br&gt;dbPort : int&lt;br&gt;dbUser : string&lt;br&gt;dbPassword : string&lt;br&gt;databaseName : string?&lt;br&gt;databaseType : DatabaseType&lt;br&gt;lastSyncTime : datetime&lt;br&gt;schemaOnly : boolean&lt;br&gt;dumpStatus : DumpStatus&lt;br&gt;dumpFilePath : string?&lt;br&gt;lastDumpTime : datetime?&lt;br&gt;dumpErrorMessage : string?&lt;br&gt;restoreStatus : RestoreStatus&lt;br&gt;localConnectionString : string?&lt;br&gt;lastRestoreTime : datetime?&lt;br&gt;restoreErrorMessage : string?" vertex="1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=6;whiteSpace=wrap;html=1;">
+          <mxGeometry y="26" width="260" height="374" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mighistory" parent="1" value="MigrationHistory" vertex="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#ffffff;strokeColor=#000000;whiteSpace=wrap;html=1;">
+          <mxGeometry x="30" y="780" width="260" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="mighistory_attr" parent="mighistory" value="connectionId : Guid (FK)&lt;br&gt;connectionName : string&lt;br&gt;recommendationTitle : string&lt;br&gt;migrationSql : text&lt;br&gt;rollbackSql : text&lt;br&gt;status : MigrationStatus&lt;br&gt;rolledBackAt : datetime?" vertex="1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=6;whiteSpace=wrap;html=1;">
+          <mxGeometry y="26" width="260" height="164" as="geometry" />
+        </mxCell>
+
+        <mxCell id="queryhistory" parent="1" value="QueryHistory" vertex="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#ffffff;strokeColor=#000000;whiteSpace=wrap;html=1;">
+          <mxGeometry x="360" y="780" width="260" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="queryhistory_attr" parent="queryhistory" value="databaseConnectionId : Guid (FK)&lt;br&gt;queryText : text&lt;br&gt;suggestedQuery : text?&lt;br&gt;resultSummary : text?&lt;br&gt;errorMessage : string?&lt;br&gt;executionTime : TimeSpan" vertex="1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=6;whiteSpace=wrap;html=1;">
+          <mxGeometry y="26" width="260" height="144" as="geometry" />
+        </mxCell>
+
+        <mxCell id="scanscan" parent="1" value="SchemaAdvisorScan" vertex="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#ffffff;strokeColor=#000000;whiteSpace=wrap;html=1;">
+          <mxGeometry x="700" y="780" width="260" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="scanscan_attr" parent="scanscan" value="databaseConnectionId : Guid (FK)&lt;br&gt;recommendationCount : int&lt;br&gt;recommendationsJson : text?&lt;br&gt;errorMessage : string?" vertex="1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=6;whiteSpace=wrap;html=1;">
+          <mxGeometry y="26" width="260" height="104" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dbtype" parent="1" value="&lt;&lt;enum&gt;&gt; DatabaseType" vertex="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#fff2cc;strokeColor=#d6b656;whiteSpace=wrap;html=1;">
+          <mxGeometry x="1030" y="30" width="180" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="dbtype_attr" parent="dbtype" value="SqlServer&lt;br&gt;MySql&lt;br&gt;PostgreSql&lt;br&gt;Oracle&lt;br&gt;SQLite&lt;br&gt;MongoDB" vertex="1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=6;whiteSpace=wrap;html=1;">
+          <mxGeometry y="26" width="180" height="144" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dumpstatus" parent="1" value="&lt;&lt;enum&gt;&gt; DumpStatus" vertex="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#fff2cc;strokeColor=#d6b656;whiteSpace=wrap;html=1;">
+          <mxGeometry x="1030" y="220" width="180" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="dumpstatus_attr" parent="dumpstatus" value="None&lt;br&gt;Pending&lt;br&gt;InProgress&lt;br&gt;Completed&lt;br&gt;Failed" vertex="1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=6;whiteSpace=wrap;html=1;">
+          <mxGeometry y="26" width="180" height="124" as="geometry" />
+        </mxCell>
+
+        <mxCell id="restorestatus" parent="1" value="&lt;&lt;enum&gt;&gt; RestoreStatus" vertex="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#fff2cc;strokeColor=#d6b656;whiteSpace=wrap;html=1;">
+          <mxGeometry x="1030" y="390" width="180" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="restorestatus_attr" parent="restorestatus" value="None&lt;br&gt;Pending&lt;br&gt;InProgress&lt;br&gt;Completed&lt;br&gt;Failed" vertex="1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=6;whiteSpace=wrap;html=1;">
+          <mxGeometry y="26" width="180" height="124" as="geometry" />
+        </mxCell>
+
+        <mxCell id="migstatus" parent="1" value="&lt;&lt;enum&gt;&gt; MigrationStatus" vertex="1" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=#fff2cc;strokeColor=#d6b656;whiteSpace=wrap;html=1;">
+          <mxGeometry x="1030" y="560" width="180" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="migstatus_attr" parent="migstatus" value="Applied&lt;br&gt;RolledBack" vertex="1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingTop=6;whiteSpace=wrap;html=1;">
+          <mxGeometry y="26" width="180" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend" parent="1" value="&lt;b&gt;Legend&lt;/b&gt;&lt;br&gt;White = Domain Entity (FullAuditedEntity&amp;lt;Guid&amp;gt;)&lt;br&gt;Blue = ABP Framework entity&lt;br&gt;Yellow = Enum&lt;br&gt;&lt;br&gt;All entities inherit:&lt;br&gt;id, creationTime, creatorUserId,&lt;br&gt;lastModificationTime, isDeleted,&lt;br&gt;deletionTime, tenantId" vertex="1" style="text;strokeColor=#666666;fillColor=#f5f5f5;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry x="1030" y="680" width="220" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_user_dbconn" edge="1" parent="1" source="user" target="dbconn" value="" style="endArrow=none;html=1;strokeWidth=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_user_label" connectable="0" parent="e_user_dbconn" value="owns" vertex="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_mig_dbconn" edge="1" parent="1" source="mighistory" target="dbconn" value="" style="endArrow=diamondThin;endFill=1;html=1;strokeWidth=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_mig_label" connectable="0" parent="e_mig_dbconn" value="belongs to" vertex="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_qh_dbconn" edge="1" parent="1" source="queryhistory" target="dbconn" value="" style="endArrow=diamondThin;endFill=1;html=1;strokeWidth=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_qh_label" connectable="0" parent="e_qh_dbconn" value="belongs to" vertex="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_scan_dbconn" edge="1" parent="1" source="scanscan" target="dbconn" value="" style="endArrow=diamondThin;endFill=1;html=1;strokeWidth=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_scan_label" connectable="0" parent="e_scan_dbconn" value="belongs to" vertex="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_dbconn_dbtype" edge="1" parent="1" source="dbconn" target="dbtype" value="" style="endArrow=open;endFill=0;html=1;strokeWidth=1;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_dbconn_dumpstatus" edge="1" parent="1" source="dbconn" target="dumpstatus" value="" style="endArrow=open;endFill=0;html=1;strokeWidth=1;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_dbconn_restorestatus" edge="1" parent="1" source="dbconn" target="restorestatus" value="" style="endArrow=open;endFill=0;html=1;strokeWidth=1;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_mig_migstatus" edge="1" parent="1" source="mighistory" target="migstatus" value="" style="endArrow=open;endFill=0;html=1;strokeWidth=1;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

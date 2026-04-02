@@ -2,7 +2,6 @@
 using Abp.Modules;
 using Abp.Reflection.Extensions;
 using Abp.Zero.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
 using sql_optimizer.EntityFrameworkCore.Seed;
 
 namespace sql_optimizer.EntityFrameworkCore;
@@ -42,15 +41,8 @@ public class sql_optimizerEntityFrameworkModule : AbpModule
 
     public override void PostInitialize()
     {
-        // Run EF Core migrations on a fresh, standalone context — before ABP's
-        // seeding UoW begins, so there is no transaction scope conflict.
         if (!SkipDbSeed)
         {
-            using (var context = IocManager.Resolve<sql_optimizerDbContext>())
-            {
-                context.Database.Migrate();
-            }
-
             SeedHelper.SeedHostDb(IocManager);
         }
     }

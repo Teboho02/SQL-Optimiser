@@ -20,5 +20,5 @@ public class BenchmarkRecommendationInput
     public double ReadRatio { get; set; } = 0.8;
 
     /// <summary>Number of executions per query per schema variant. Clamped to 1–5.</summary>
-    public int Runs { get; set; } = 3;
+    public int Runs { get; set; } = 5;
 }

@@ -13,15 +13,21 @@ public interface ISchemaAdvisorAppService : IApplicationService
     Task<ScanSchemaOutput> ScanSchemaAsync(ScanSchemaInput input);
 
     /// <summary>
-    /// Generates a PostgreSQL migration script for the supplied recommendation.
+    /// Generates a PostgreSQL migration script and an EF Core migration class for the supplied recommendation.
     /// </summary>
     Task<GenerateMigrationOutput> GenerateMigrationAsync(GenerateMigrationInput input);
+
+    /// <summary>
+    /// Executes the provided migration SQL directly against the live database
+    /// using the connection credentials stored for the given connection ID.
+    /// </summary>
+    Task<ApplyMigrationOutput> ApplyMigrationAsync(ApplyMigrationInput input);
 
     /// <summary>
     /// Asks the AI to generate a benchmark DDL and representative read + write query pairs
     /// for the user to review and edit before running.
     /// </summary>
-    Task<GetBenchmarkPlanOutput> GetBenchmarkPlanAsync(GetBenchmarkPlanInput input);
+    Task<GetBenchmarkPlanOutput> PrepareBenchmarkPlanAsync(GetBenchmarkPlanInput input);
 
     /// <summary>
     /// Runs the benchmark using user-confirmed query pairs.

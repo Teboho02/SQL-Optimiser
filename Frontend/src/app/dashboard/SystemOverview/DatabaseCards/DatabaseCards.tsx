@@ -1,79 +1,96 @@
 "use client";
 
-import { Tag } from "antd";
+import { Skeleton } from "antd";
 import {
-    DatabaseOutlined,
-    LineChartOutlined,
-    ArrowUpOutlined,
-    ArrowDownOutlined,
-    ClockCircleOutlined,
+    BarChartOutlined,
+    ThunderboltOutlined,
+    ApiOutlined,
+    RiseOutlined,
 } from "@ant-design/icons";
 import React from "react";
 import { useStyles } from "../style/styles";
 
-interface IDatabaseCard {
-    name: string;
-    status: "Healthy" | "Critical";
-    score: number;
-    delta: number;
+interface IDatabaseCardsProps {
+    totalQueriesRun: number;
+    queriesOptimised: number;
+    activeConnections: number;
+    averageImprovementPercent: number | null;
+    loading: boolean;
 }
 
-interface IAnalysisCard {
-    total: number;
-    avgTimeSaved: string;
-}
-
-const DATABASE_CARDS: IDatabaseCard[] = [
-    { name: "prod-main", status: "Healthy", score: 92, delta: 2 },
-    { name: "prod-analytics", status: "Critical", score: 45, delta: -12 },
-];
-
-const ANALYSIS_CARD: IAnalysisCard = { total: 1284, avgTimeSaved: "420ms" };
-
-/** Three stat cards: two database health scores and a total analyses counter. */
-const DatabaseCards: React.FC = () => {
+/** Four stat cards showing total queries, optimised queries, active connections, and avg improvement. */
+const DatabaseCards: React.FC<IDatabaseCardsProps> = ({
+    totalQueriesRun,
+    queriesOptimised,
+    activeConnections,
+    averageImprovementPercent,
+    loading,
+}) => {
     const { styles } = useStyles();
+
+    if (loading) {
+        return (
+            <div className={styles.cardsRow}>
+                {[0, 1, 2, 3].map((index) => (
+                    <div key={index} className={styles.statCard}>
+                        <Skeleton active title={{ width: "60%" }} paragraph={{ rows: 1 }} />
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    const improvementDisplay = averageImprovementPercent !== null
+        ? `${averageImprovementPercent}%`
+        : "N/A";
 
     return (
         <div className={styles.cardsRow}>
-            {DATABASE_CARDS.map((card) => (
-                <div key={card.name} className={styles.statCard}>
-                    <div className={styles.statCardHeader}>
-                        <span className={styles.statCardName}>
-                            <DatabaseOutlined className={styles.statCardIcon} />
-                            {card.name}
-                        </span>
-                        <Tag color={card.status === "Healthy" ? "success" : "error"}>
-                            {card.status}
-                        </Tag>
-                    </div>
-                    <div className={styles.statValue}>
-                        {card.score} <span>/ 100</span>
-                    </div>
-                    <div className={`${styles.statDelta} ${card.delta >= 0 ? styles.deltaPositive : styles.deltaNegative}`}>
-                        {card.delta >= 0
-                            ? <ArrowUpOutlined />
-                            : <ArrowDownOutlined />
-                        }
-                        {card.delta >= 0 ? `+${card.delta}` : card.delta} from yesterday
-                    </div>
+            <div className={styles.statCard}>
+                <div className={styles.statCardHeader}>
+                    <span className={styles.statCardName}>
+                        <BarChartOutlined className={styles.statCardIcon} />
+                        Total Queries Run
+                    </span>
                 </div>
-            ))}
+                <div className={styles.statValueFormatted}>
+                    {totalQueriesRun.toLocaleString()}
+                </div>
+            </div>
 
             <div className={styles.statCard}>
                 <div className={styles.statCardHeader}>
                     <span className={styles.statCardName}>
-                        <LineChartOutlined className={styles.statCardIcon} />
-                        Total Analyses
+                        <ThunderboltOutlined className={styles.statCardIcon} />
+                        Queries Optimised
                     </span>
-                    <span className={styles.statCardMeta}>This week</span>
                 </div>
                 <div className={styles.statValueFormatted}>
-                    {ANALYSIS_CARD.total.toLocaleString()}
+                    {queriesOptimised.toLocaleString()}
                 </div>
-                <div className={styles.statSubtext}>
-                    <ClockCircleOutlined />
-                    Avg time saved: {ANALYSIS_CARD.avgTimeSaved}
+            </div>
+
+            <div className={styles.statCard}>
+                <div className={styles.statCardHeader}>
+                    <span className={styles.statCardName}>
+                        <ApiOutlined className={styles.statCardIcon} />
+                        Active Connections
+                    </span>
+                </div>
+                <div className={styles.statValueFormatted}>
+                    {activeConnections.toLocaleString()}
+                </div>
+            </div>
+
+            <div className={styles.statCard}>
+                <div className={styles.statCardHeader}>
+                    <span className={styles.statCardName}>
+                        <RiseOutlined className={styles.statCardIcon} />
+                        Avg Improvement
+                    </span>
+                </div>
+                <div className={styles.statValueFormatted}>
+                    {improvementDisplay}
                 </div>
             </div>
         </div>

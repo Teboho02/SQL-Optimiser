@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Button, Select, Alert, Modal, Spin, Empty, Typography, Input, Table, Slider, Tag, Divider, Tooltip } from "antd";
+import { Button, Select, Alert, Modal, Spin, Empty, Typography, Input, Table, Slider, Tag, Divider, Tooltip, Tabs, Popconfirm } from "antd";
 import type { TableProps } from "antd";
 import { ScanOutlined, CopyOutlined, ThunderboltOutlined, ExperimentOutlined, PlusOutlined, DeleteOutlined, HistoryOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import RecommendationList from "./RecommendationList/RecommendationList";
@@ -10,6 +10,7 @@ import { useStyles } from "./style/styles";
 import {
     scanSchema,
     generateMigration,
+    applyMigration,
     getBenchmarkPlan,
     benchmarkRecommendation,
     IRecommendationDto,
@@ -41,8 +42,14 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
 
     const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
     const [migrationSql, setMigrationSql] = useState<string | null>(null);
+    const [efCoreMigration, setEfCoreMigration] = useState<string | null>(null);
+    const [rollbackSql, setRollbackSql] = useState<string | null>(null);
     const [migrationError, setMigrationError] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [migrationTab, setMigrationTab] = useState<string>("sql");
+    const [isApplying, setIsApplying] = useState(false);
+    const [applyError, setApplyError] = useState<string | null>(null);
+    const [applySuccess, setApplySuccess] = useState(false);
 
     const [isBenchmarkModalOpen, setIsBenchmarkModalOpen] = useState(false);
     const [benchmarkSql, setBenchmarkSql] = useState("");
@@ -144,7 +151,12 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
         setIsMigrationModalOpen(true);
         setIsGenerating(true);
         setMigrationSql(null);
+        setEfCoreMigration(null);
+        setRollbackSql(null);
         setMigrationError(null);
+        setMigrationTab("sql");
+        setApplyError(null);
+        setApplySuccess(false);
 
         try {
             const output = await generateMigration(selectedConnectionId, selectedRecommendation);
@@ -153,6 +165,8 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                 setMigrationError(output.error);
             } else {
                 setMigrationSql(output.migrationSql ?? null);
+                setEfCoreMigration(output.efCoreMigration ?? null);
+                setRollbackSql(output.rollbackSql ?? null);
             }
         } catch (err) {
             setMigrationError(err instanceof Error ? err.message : "An unexpected error occurred.");
@@ -162,8 +176,33 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
     };
 
     const handleCopySql = (): void => {
-        if (migrationSql) {
-            void navigator.clipboard.writeText(migrationSql);
+        const content = migrationTab === "efcore" ? efCoreMigration : migrationSql;
+        if (content) {
+            void navigator.clipboard.writeText(content);
+        }
+    };
+
+    const handleApplyMigration = async (): Promise<void> => {
+        if (!selectedConnectionId || !migrationSql || !selectedRecommendation) return;
+        setIsApplying(true);
+        setApplyError(null);
+        setApplySuccess(false);
+        try {
+            const output = await applyMigration(
+                selectedConnectionId,
+                migrationSql,
+                rollbackSql,
+                selectedRecommendation.title,
+            );
+            if (output.error) {
+                setApplyError(output.error);
+            } else {
+                setApplySuccess(true);
+            }
+        } catch (err) {
+            setApplyError(err instanceof Error ? err.message : "An unexpected error occurred.");
+        } finally {
+            setIsApplying(false);
         }
     };
 
@@ -223,6 +262,7 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                 benchmarkDdl,
                 queryPairs,
                 readRatio / 100,
+                5,
             );
             if (output.error) {
                 setCompareError(output.error);
@@ -311,7 +351,7 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
             {scanError && (
                 <Alert
                     type="error"
-                    message={scanError}
+                    title={scanError}
                     closable
                     onClose={() => setScanError(null)}
                     style={{ marginBottom: 16 }}
@@ -356,13 +396,26 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                 title="Generated Migration Script"
                 open={isMigrationModalOpen}
                 onCancel={() => setIsMigrationModalOpen(false)}
-                width={760}
+                width={800}
                 footer={
                     migrationSql
                         ? [
                               <Button key="copy" icon={<CopyOutlined />} onClick={handleCopySql}>
-                                  Copy SQL
+                                  Copy
                               </Button>,
+                              <Popconfirm
+                                  key="apply"
+                                  title="Apply to live database"
+                                  description="This will execute the SQL migration directly on your live database. Ensure you have a backup first."
+                                  onConfirm={() => void handleApplyMigration()}
+                                  okText="Apply"
+                                  cancelText="Cancel"
+                                  okButtonProps={{ danger: true }}
+                              >
+                                  <Button danger loading={isApplying}>
+                                      Apply to Live Database
+                                  </Button>
+                              </Popconfirm>,
                               <Button key="close" type="primary" onClick={() => setIsMigrationModalOpen(false)}>
                                   Close
                               </Button>,
@@ -379,23 +432,34 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                         <Spin tip="Generating migration script..." />
                     </div>
                 )}
-                {migrationError && <Alert type="error" message={migrationError} />}
-                {migrationSql && (
-                    <pre
-                        style={{
-                            background: "rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(255,255,255,0.1)",
-                            borderRadius: 8,
-                            padding: 16,
-                            fontSize: 12,
-                            lineHeight: 1.6,
-                            overflow: "auto",
-                            maxHeight: 480,
-                            whiteSpace: "pre-wrap",
-                        }}
-                    >
-                        <Text code>{migrationSql}</Text>
-                    </pre>
+                {migrationError && <Alert type="error" title={migrationError} style={{ marginBottom: 12 }} />}
+                {applySuccess && <Alert type="success" title="Migration applied successfully to the live database." style={{ marginBottom: 12 }} />}
+                {applyError && <Alert type="error" title={`Apply failed: ${applyError}`} style={{ marginBottom: 12 }} />}
+                {(migrationSql || efCoreMigration) && (
+                    <Tabs
+                        activeKey={migrationTab}
+                        onChange={setMigrationTab}
+                        items={[
+                            {
+                                key: "sql",
+                                label: "PostgreSQL",
+                                children: (
+                                    <pre style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: 16, fontSize: 12, lineHeight: 1.6, overflow: "auto", maxHeight: 440, whiteSpace: "pre-wrap" }}>
+                                        <Text code>{migrationSql ?? ""}</Text>
+                                    </pre>
+                                ),
+                            },
+                            {
+                                key: "efcore",
+                                label: "EF Core (C#)",
+                                children: (
+                                    <pre style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: 16, fontSize: 12, lineHeight: 1.6, overflow: "auto", maxHeight: 440, whiteSpace: "pre-wrap" }}>
+                                        <Text code>{efCoreMigration ?? ""}</Text>
+                                    </pre>
+                                ),
+                            },
+                        ]}
+                    />
                 )}
             </Modal>
             <Modal
@@ -436,7 +500,7 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                 />
 
                 {benchmarkError && (
-                    <Alert type="error" message={benchmarkError} style={{ marginBottom: 16 }} />
+                    <Alert type="error" title={benchmarkError} style={{ marginBottom: 16 }} />
                 )}
 
                 {isBenchmarking && benchmarkRuns.length === 0 && (
@@ -475,7 +539,7 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                             {selectedRecommendation && selectedRecommendation.metrics.length > 0 && (
                                 <Alert
                                     type="info"
-                                    message="AI Estimated Improvement"
+                                    title="AI Estimated Improvement"
                                     description={
                                         <ul style={{ margin: 0, paddingLeft: 18 }}>
                                             {selectedRecommendation.metrics.map((m) => (
@@ -579,14 +643,14 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                                 <Text type="secondary">AI is generating query suggestions…</Text>
                             </div>
                         )}
-                        {planError && <Alert type="error" message={planError} style={{ marginBottom: 12 }} />}
-                        {compareError && <Alert type="error" message={compareError} style={{ marginBottom: 12 }} />}
+                        {planError && <Alert type="error" title={planError} style={{ marginBottom: 12 }} />}
+                        {compareError && <Alert type="error" title={compareError} style={{ marginBottom: 12 }} />}
 
                         {involvesIndexes && (
                             <Alert
                                 type="info"
                                 style={{ marginBottom: 16 }}
-                                message="This recommendation adds indexes — indexes speed up reads but slow down writes."
+                                title="This recommendation adds indexes — indexes speed up reads but slow down writes."
                                 description={
                                     <div style={{ marginTop: 8 }}>
                                         <Text style={{ fontSize: 13 }}>Estimated read/write ratio for your workload:</Text>
@@ -672,7 +736,7 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                             <Alert
                                 type={weightedImprovement >= 0 ? "success" : "warning"}
                                 style={{ marginBottom: 20 }}
-                                message={
+                                title={
                                     <Text strong style={{ fontSize: 15 }}>
                                         Weighted Overall Score ({readRatio}% reads / {100 - readRatio}% writes):&nbsp;
                                         <span style={{ color: weightedImprovement >= 0 ? "#52c41a" : "#ff4d4f" }}>
@@ -697,7 +761,7 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                                 </div>
 
                                 {result.error
-                                    ? <Alert type="error" message={result.error} />
+                                    ? <Alert type="error" title={result.error} />
                                     : (
                                         <>
                                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
@@ -708,10 +772,15 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                                                     {result.adaptedQuery}
                                                 </pre>
                                             </div>
-                                            <div style={{ display: "flex", gap: 12 }}>
+                                            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                                                 <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "6px 18px", textAlign: "center" }}>
                                                     <Text type="secondary" style={{ fontSize: 11, display: "block" }}>Original Avg</Text>
                                                     <Text strong style={{ fontSize: 16 }}>{result.originalAvgMs.toFixed(1)} ms</Text>
+                                                    <div style={{ marginTop: 4, display: "flex", gap: 4, justifyContent: "center", flexWrap: "wrap" }}>
+                                                        {result.originalRunsMs.map((ms, i) => (
+                                                            <Text key={i} type="secondary" style={{ fontSize: 10 }}>R{i + 1}: {ms.toFixed(0)}ms</Text>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                                 <div style={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.3)" }}>→</div>
                                                 <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "6px 18px", textAlign: "center" }}>
@@ -719,6 +788,13 @@ export default function SchemaAdvisorPage(): React.JSX.Element {
                                                     <Text strong style={{ fontSize: 16, color: result.adaptedAvgMs < result.originalAvgMs ? "#52c41a" : "#ff4d4f" }}>
                                                         {result.adaptedAvgMs.toFixed(1)} ms
                                                     </Text>
+                                                    <div style={{ marginTop: 4, display: "flex", gap: 4, justifyContent: "center", flexWrap: "wrap" }}>
+                                                        {result.adaptedRunsMs.map((ms, i) => (
+                                                            <Text key={i} type="secondary" style={{ fontSize: 10, color: result.adaptedAvgMs < result.originalAvgMs ? "#52c41a" : "#ff4d4f" }}>
+                                                                R{i + 1}: {ms.toFixed(0)}ms
+                                                            </Text>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </>

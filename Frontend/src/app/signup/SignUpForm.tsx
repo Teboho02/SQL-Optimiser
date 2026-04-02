@@ -26,7 +26,7 @@ const SignUpForm: React.FC = () => {
         try {
             const response = await fetch(API_CONSTANTS.REGISTER, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "Abp-TenantId": "1" },
                 body: JSON.stringify({
                     name: values.name,
                     surname: values.surname,

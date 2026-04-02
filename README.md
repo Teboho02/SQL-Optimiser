@@ -287,6 +287,6 @@ AI was used as a **development assistant** to:
 
 # Design
 
-## [Wireframes](https://www.figma.com/proto/t2fwZ1w2wxnsS9xFcuirDk/Ubuntu-Learn?node-id=0-1&t=XW4aQGuyEAzecwVq-1)
+## [Wireframes](https://www.figma.com/design/J0RQDF96WhqvRMvOKPmGAk/Untitled?node-id=0-1&p=f&t=GGY92gIAOiDAybvU-0)
 
 ## [Domain Model](https://drive.google.com/file/d/1Wsbk6MD8gc6VKeSFTmFPhKKgORauUpjd/view?usp=sharing)

@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button, Input, Select, Switch, notification } from "antd";
-import { DatabaseOutlined, KeyOutlined, CodeOutlined } from "@ant-design/icons";
+import { Button, Collapse, Input, Select, Switch, notification } from "antd";
+import { DatabaseOutlined, KeyOutlined, CodeOutlined, PlusOutlined } from "@ant-design/icons";
 import { testConnection, DATABASE_TYPE_MAP } from "@/services/databaseConnectionService";
 import { API_CONSTANTS } from "@/constants/ApiConstants";
 import { tokenService } from "@/services/tokenService";
@@ -142,9 +142,8 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
         }
     };
 
-    return (
-        <div className={styles.formSection} id="add-connection-form">
-            <h2 className={styles.formSectionTitle}>Add New Connection</h2>
+    const formContent = (
+        <>
             <div className={styles.formGrid}>
                 <div>
                     <label className={styles.formLabel} htmlFor="conn-name">Connection Name</label>
@@ -212,7 +211,7 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
                     />
                 </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 16 }}>
                 <Switch
                     id="conn-schema-only"
                     checked={schemaOnly}
@@ -238,6 +237,24 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
                     Save Connection
                 </Button>
             </div>
+        </>
+    );
+
+    return (
+        <div id="add-connection-form" style={{ marginTop: 24 }}>
+            <Collapse
+                defaultActiveKey={[]}
+                items={[{
+                    key: "add-connection",
+                    label: (
+                        <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
+                            <PlusOutlined />
+                            Add New Connection
+                        </span>
+                    ),
+                    children: formContent,
+                }]}
+            />
         </div>
     );
 };

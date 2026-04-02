@@ -2,11 +2,8 @@
 
 import React from "react";
 import { Button, Tag, Tooltip } from "antd";
-import { DatabaseOutlined, EditOutlined, CloudDownloadOutlined, ReloadOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import { DatabaseOutlined, CloudDownloadOutlined, ReloadOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { useStyles } from "../style/styles";
-
-/** Connection status values for a database card. */
-export type TConnectionStatus = "connected" | "disconnected";
 
 /** Shape of a single database connection entry. */
 export interface IDatabase {
@@ -22,8 +19,8 @@ export interface IDatabase {
     host: string;
     /** Measured round-trip latency, or "-" if unavailable. */
     latency: string;
-    /** Whether the connection is currently active. */
-    status: TConnectionStatus;
+    /** ISO timestamp of the last sync, or null if never synced. */
+    lastSyncTime: string | null;
     /** Human-readable restore status label. */
     restoreStatus: string;
     /** Whether a local copy of the database is ready to query. */
@@ -34,11 +31,12 @@ export interface IDatabase {
     restoreStatusRaw: number;
     /** Whether this connection was configured to dump schema only (no row data). */
     schemaOnly: boolean;
+    /** Name of the specific database on the host, or null if not set. */
+    databaseName: string | null;
 }
 
 interface IConnectionCardProps {
     database: IDatabase;
-    onEdit: () => void;
     onDump: () => void;
     onRebuild: () => void;
     onGenerateData: () => void;
@@ -47,7 +45,7 @@ interface IConnectionCardProps {
 }
 
 /** Card displaying a single database connection's metadata and status. */
-const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDump, onRebuild, onGenerateData, isDumping, isRebuilding }) => {
+const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onDump, onRebuild, onGenerateData, isDumping, isRebuilding }) => {
     const { styles } = useStyles();
 
     const dumpBusy = isDumping || database.dumpStatus === 1 || database.dumpStatus === 2;
@@ -67,8 +65,16 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDu
             </div>
             <div className={styles.cardMeta}>
                 <div className={styles.cardMetaRow}>
-                    <span className={styles.cardMetaLabel}>Host</span>
-                    <span className={styles.cardMetaValue}>{database.host}</span>
+                    <span className={styles.cardMetaLabel}>Database</span>
+                    <span className={styles.cardMetaValue}>{database.databaseName ?? "—"}</span>
+                </div>
+                <div className={styles.cardMetaRow}>
+                    <span className={styles.cardMetaLabel}>Last Synced</span>
+                    <span className={styles.cardMetaValue}>
+                        {database.lastSyncTime
+                            ? new Date(database.lastSyncTime).toLocaleString()
+                            : "Never"}
+                    </span>
                 </div>
                 <div className={styles.cardMetaRow}>
                     <span className={styles.cardMetaLabel}>Latency</span>
@@ -76,8 +82,8 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDu
                 </div>
             </div>
             <div className={styles.cardFooter}>
-                <span className={database.status === "connected" ? styles.badgeConnected : styles.badgeDisconnected}>
-                    {database.status}
+                <span className={styles.badgeConnected}>
+                    Saved
                 </span>
                 <span className={database.isLocalReady ? styles.badgeConnected : styles.badgeDisconnected}>
                     {database.restoreStatus}
@@ -118,7 +124,6 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onEdit, onDu
                         </Button>
                     </Tooltip>
                 )}
-                <Button type="text" size="small" icon={<EditOutlined />} onClick={onEdit}>Edit</Button>
             </div>
         </div>
     );

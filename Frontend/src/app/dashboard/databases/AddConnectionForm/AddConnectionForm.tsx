@@ -5,7 +5,7 @@ import { Button, Collapse, Input, Select, Switch, notification } from "antd";
 import { DatabaseOutlined, KeyOutlined, CodeOutlined, PlusOutlined } from "@ant-design/icons";
 import { testConnection, DATABASE_TYPE_MAP } from "@/services/databaseConnectionService";
 import { API_CONSTANTS } from "@/constants/ApiConstants";
-import { tokenService } from "@/services/tokenService";
+import { apiFetch } from "@/utils/apiFetch";
 import { useStyles } from "../style/styles";
 
 const ENGINE_OPTIONS = [
@@ -105,12 +105,9 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
 
         setIsSaving(true);
         try {
-            const response = await fetch(API_CONSTANTS.SAVE_CONNECTION, {
+            const response = await apiFetch(API_CONSTANTS.SAVE_CONNECTION, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${tokenService.getToken()}`,
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     name: values.name,
                     dbHost: values.host,

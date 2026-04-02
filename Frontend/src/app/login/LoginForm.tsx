@@ -4,7 +4,6 @@ import { Button, Checkbox, Form, Input, message } from "antd";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { authenticate } from "@/services/authService";
-import { tokenService } from "@/services/tokenService";
 import { useStyles } from "./style/styles";
 
 interface ILoginFormValues {
@@ -23,14 +22,11 @@ const LoginForm: React.FC = () => {
     const handleSubmit = async (values: ILoginFormValues): Promise<void> => {
         setIsLoading(true);
         try {
-            const result = await authenticate({
+            await authenticate({
                 userNameOrEmailAddress: values.userNameOrEmailAddress,
                 password: values.password,
                 rememberClient: values.rememberMe ?? false,
             });
-
-            tokenService.setToken(result.accessToken);
-            tokenService.setUserId(result.userId);
 
             router.push("/dashboard");
         } catch (error) {

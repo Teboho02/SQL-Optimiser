@@ -1,12 +1,4 @@
-const TOKEN_KEY = "access_token";
 const USER_ID_KEY = "user_id";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days in seconds
-
-function setCookie(name: string, value: string): void {
-    if (typeof document === "undefined") return;
-    const secure = location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${COOKIE_MAX_AGE}; Path=/; SameSite=Strict${secure}`;
-}
 
 function getCookie(name: string): string | null {
     if (typeof document === "undefined") return null;
@@ -21,31 +13,25 @@ function deleteCookie(name: string): void {
     document.cookie = `${name}=; Max-Age=0; Path=/`;
 }
 
-/** Manages JWT token persistence in cookies. */
+/**
+ * Provides auth-state helpers for the frontend.
+ * The access token itself is stored in an HttpOnly cookie managed by the backend
+ * and is never readable by JavaScript. The non-HttpOnly user_id cookie is used
+ * solely to detect whether a session is active.
+ */
 export const tokenService = {
-    setToken(token: string): void {
-        setCookie(TOKEN_KEY, token);
-    },
-
-    getToken(): string | null {
-        return getCookie(TOKEN_KEY);
-    },
-
-    setUserId(userId: number): void {
-        setCookie(USER_ID_KEY, String(userId));
-    },
-
     getUserId(): number | null {
         const value = getCookie(USER_ID_KEY);
         return value ? Number(value) : null;
     },
 
+    /** Returns true when the backend-set user_id cookie is present, indicating an active session. */
     isAuthenticated(): boolean {
-        return !!getCookie(TOKEN_KEY);
+        return !!getCookie(USER_ID_KEY);
     },
 
+    /** Clears the readable user_id cookie. Call after the backend logout endpoint clears the HttpOnly token cookie. */
     clear(): void {
-        deleteCookie(TOKEN_KEY);
         deleteCookie(USER_ID_KEY);
     },
 };

@@ -57,7 +57,7 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
         }
 
         var systemPrompt = """
-            You are an expert PostgreSQL database architect specialising in normalisation and performance.
+            You are an expert PostgreSQL database architect specialising in performance tuning and schema design.
             Analyse the schema provided and return a JSON object with improvement recommendations.
             Respond with ONLY valid JSON — no markdown, no code fences, no extra text.
 
@@ -94,12 +94,49 @@ public class SchemaAdvisorAppService : ApplicationService, ISchemaAdvisorAppServ
             }
 
             Rules:
-            - "highlight": "warning" for problematic columns (large types, no index on FK, redundant data).
-            - "highlight": "new" for newly introduced columns in the proposed schema.
+            - "highlight": "warning" for problematic columns (oversized types, missing FK index, redundant data, functions on indexed columns).
+            - "highlight": "new" for newly introduced columns or tables in the proposed schema.
             - "highlight": null for ordinary columns with no change.
-            - Return 2–4 recommendations maximum, ordered by impact descending.
-            - Focus on: missing indexes on foreign keys or high-cardinality columns, wide tables with large column types, tables that would benefit from normalisation or a materialised view, columns storing multiple values in a single field.
+            - Return 3–6 recommendations maximum, ordered by impact descending.
             - Provide realistic before/after metric estimates based on the row counts and column types visible in the schema.
+
+            Consider ALL of the following optimisation categories — do not focus only on indexes:
+
+            1. NORMALISATION / DENORMALISATION
+               - Tables that violate 2NF/3NF (repeated groups, transitive dependencies).
+               - Wide tables that should be split, or over-normalised tables that should be merged for read performance.
+
+            2. DATA TYPE OPTIMISATION
+               - Columns using TEXT where VARCHAR(n) would enforce a known max length and reduce storage.
+               - Columns using VARCHAR where a fixed-length CHAR, integer enum, or smaller numeric type is more appropriate.
+               - Oversized numeric types (e.g. BIGINT where INTEGER suffices).
+
+            3. INDEX STRATEGY
+               - Missing indexes on foreign keys or high-cardinality filter/join columns.
+               - Redundant or duplicate indexes that increase write overhead without read benefit.
+               - Indexes that should be DROPPED on write-heavy tables where writes significantly outnumber reads.
+               - Composite indexes that could replace multiple single-column indexes.
+               - Partial indexes for tables with common WHERE predicates.
+
+            4. QUERY RESULT OPTIMISATION
+               - Tables or views where SELECT * is typical but only a subset of columns is actually needed — suggest explicit column lists or covering indexes.
+               - Opportunities to return only required columns to reduce network and memory overhead.
+
+            5. FUNCTION ON INDEXED COLUMNS
+               - Columns where queries likely apply functions (e.g. LOWER(email), DATE(created_at)) defeating index usage — suggest functional/expression indexes or schema changes to avoid the function.
+
+            6. JOIN OPTIMISATION
+               - Missing indexes on join keys.
+               - Opportunities to pre-compute or materialise frequent joins using materialised views.
+               - Denormalisation candidates where a join can be eliminated by storing a derived value.
+
+            7. STORED PROCEDURES / FUNCTIONS
+               - Patterns of repeated logic that would benefit from a PostgreSQL function or stored procedure to reduce round-trips and parsing overhead.
+
+            8. OTHER
+               - Columns storing multiple values in a single field (should be normalised to a child table).
+               - NULL-heavy optional columns that could be extracted to a separate table.
+               - Missing NOT NULL constraints on logically required columns.
             """;
 
         var userMessage = $"Database schema:\n\n{schemaContext}";

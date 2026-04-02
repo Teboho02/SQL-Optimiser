@@ -9,12 +9,13 @@ import {
     DatabaseOutlined,
     ApartmentOutlined,
     HistoryOutlined,
-    SettingOutlined,
+    LogoutOutlined,
 } from "@ant-design/icons";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import React from "react";
 import { useStyles } from "./style/styles";
+import { tokenService } from "@/services/tokenService";
 
 const NAV_ITEMS = [
     { key: "/dashboard", icon: <AppstoreOutlined />, label: <Link href="/dashboard">Dashboard</Link> },
@@ -25,19 +26,25 @@ const NAV_ITEMS = [
     { key: "/dashboard/history", icon: <HistoryOutlined />, label: <Link href="/dashboard/history">History</Link> },
 ];
 
-const SETTINGS_ITEMS = [
-    { key: "/dashboard/settings", icon: <SettingOutlined />, label: <Link href="/dashboard/settings">Settings</Link> },
-];
-
 interface IDashboardSidebarProps {
     /** Called after a nav item is clicked — used to close the mobile drawer. */
     onNavClick?: () => void;
 }
 
-/** Left sidebar with branding, primary navigation, and settings link. */
+/** Left sidebar with branding, primary navigation, and sign-out button. */
 const DashboardSidebar: React.FC<IDashboardSidebarProps> = ({ onNavClick }) => {
     const { styles } = useStyles();
     const pathname = usePathname();
+    const router = useRouter();
+
+    const handleSignOut = (): void => {
+        tokenService.clear();
+        router.push("/login");
+    };
+
+    const SIGN_OUT_ITEMS = [
+        { key: "signout", icon: <LogoutOutlined />, label: "Sign Out", danger: true },
+    ];
 
     return (
         <div className={styles.sidebar}>
@@ -56,9 +63,9 @@ const DashboardSidebar: React.FC<IDashboardSidebarProps> = ({ onNavClick }) => {
             <div className={styles.settingsArea}>
                 <Menu
                     mode="inline"
-                    selectedKeys={[pathname]}
-                    items={SETTINGS_ITEMS}
-                    onClick={onNavClick}
+                    selectedKeys={[]}
+                    items={SIGN_OUT_ITEMS}
+                    onClick={handleSignOut}
                 />
             </div>
         </div>

@@ -212,7 +212,7 @@ const AddConnectionForm: React.FC<IAddConnectionFormProps> = ({ onSaved }) => {
                     />
                 </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 16 }}>
                 <Switch
                     id="conn-schema-only"
                     checked={schemaOnly}

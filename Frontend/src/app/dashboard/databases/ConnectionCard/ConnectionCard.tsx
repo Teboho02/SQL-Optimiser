@@ -31,6 +31,8 @@ export interface IDatabase {
     restoreStatusRaw: number;
     /** Whether this connection was configured to dump schema only (no row data). */
     schemaOnly: boolean;
+    /** Name of the specific database on the host, or null if not set. */
+    databaseName: string | null;
 }
 
 interface IConnectionCardProps {
@@ -62,6 +64,10 @@ const ConnectionCard: React.FC<IConnectionCardProps> = ({ database, onDump, onRe
                 </div>
             </div>
             <div className={styles.cardMeta}>
+                <div className={styles.cardMetaRow}>
+                    <span className={styles.cardMetaLabel}>Database</span>
+                    <span className={styles.cardMetaValue}>{database.databaseName ?? "—"}</span>
+                </div>
                 <div className={styles.cardMetaRow}>
                     <span className={styles.cardMetaLabel}>Last Synced</span>
                     <span className={styles.cardMetaValue}>
